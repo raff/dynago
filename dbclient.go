@@ -5,12 +5,16 @@ import (
 	//"github.com/bmizerany/aws4/dydb"
 	"github.com/raff/aws4"
 	"github.com/raff/aws4/dydb"
+
+	"strings"
 )
 
 const (
 	REGION_US_EAST_1 = "https://dynamodb.us-east-1.amazonaws.com/"
 	REGION_US_WEST_1 = "https://dynamodb.us-west-1.amazonaws.com/"
 	REGION_US_WEST_2 = "https://dynamodb.us-west-2.amazonaws.com/"
+
+	region_pattern = "https://dynamodb.{}.amazonaws.com/"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -29,6 +33,11 @@ func NewDBClient() (db *DBClient) {
 }
 
 func (db *DBClient) WithRegion(region string) *DBClient {
+
+	if !strings.Contains(region, "/") {
+		// not a URL
+		region = strings.Replace(region_pattern, "{}", region, 1)
+	}
 	db.URL = region
 	return db
 }

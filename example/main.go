@@ -2,23 +2,65 @@ package main
 
 import (
 	"../../dynago"
+	"code.google.com/p/gcfg"
 
 	"fmt"
 	"log"
+	"os"
 )
 
+// the configuration should look like the following
+// (with multiple profiles and a selected one)
+//
+// [dynago]
+// profile=xxx
+//
+// [profile "xxx"]
+// region=us-west-1
+// accessKey=XXXXXXXX
+// secretKey=YYYYYYYY
+
+type Config struct {
+	Dynago struct {
+		// define default profile
+		Profile string
+	}
+
+	// list of named profiles
+	Profile map[string]*struct {
+		Region    string
+		AccessKey string
+		SecretKey string
+	}
+}
+
 func main() {
-	// use all defaults
-	// db := dynago.NewDBClient()
+	var config Config
 
-	// set region
-	//db := dynago.NewDBClient().
-	//        WithRegion(dynago.REGION_US_WEST_1)
+	err := gcfg.ReadFileInto(&config, ".dynagorc")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// set region and credentials
-	db := dynago.NewDBClient().
-		WithRegion(dynago.REGION_US_EAST_1).
-		WithCredentials("YOURACCESSKEY", "YOURSECRETKEY")
+	selected := config.Dynago.Profile
+
+	if len(os.Args) > 1 {
+		// there is at least one parameter:
+		// override the selected profile
+		selected = os.Args[1]
+	}
+
+	profile := config.Profile[selected]
+
+	db := dynago.NewDBClient()
+
+	if len(profile.Region) > 0 {
+		db.WithRegion(profile.Region)
+	}
+
+	if len(profile.AccessKey) > 0 {
+		db.WithCredentials(profile.AccessKey, profile.SecretKey)
+	}
 
 	tables, err := db.ListTables()
 
