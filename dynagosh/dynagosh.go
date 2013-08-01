@@ -4,18 +4,20 @@ import (
 	"../../dynago"
 
 	"code.google.com/p/gcfg"
-        "github.com/gobs/cmd"
-        "github.com/gobs/pretty"
+	"github.com/gobs/cmd"
+	"github.com/gobs/pretty"
 
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"strings"
 )
 
 const (
-    CONFIG_FILE = ".dynagorc"
-    HISTORY_FILE = ".dynago_history"
-    )
+	CONFIG_FILE  = ".dynagorc"
+	HISTORY_FILE = ".dynago_history"
+)
 
 // the configuration should look like the following
 // (with multiple profiles and a selected one)
@@ -42,17 +44,33 @@ type Config struct {
 	}
 }
 
+func ReadConfig(configFile string, config *Config) {
+	// configFile in current directory or full path
+	if _, err := os.Stat(configFile); err != nil {
+		if strings.Contains(configFile, "/") {
+			return
+		}
+
+		// configFile in home directory
+		configFile = path.Join(os.Getenv("HOME"), configFile)
+		if _, err := os.Stat(configFile); err != nil {
+			return
+		}
+	}
+
+	err := gcfg.ReadFileInto(config, configFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func CompletionFunction(text string, line string, start, stop int) []string {
-    return nil
+	return nil
 }
 
 func main() {
 	var config Config
-
-	err := gcfg.ReadFileInto(&config, CONFIG_FILE)
-	if err != nil {
-		log.Fatal(err)
-	}
+	ReadConfig(CONFIG_FILE, &config)
 
 	selected := config.Dynago.Profile
 
@@ -63,6 +81,9 @@ func main() {
 	}
 
 	profile := config.Profile[selected]
+	if profile == nil {
+		log.Fatal("no profile selected")
+	}
 
 	db := dynago.NewDBClient()
 
@@ -75,7 +96,7 @@ func main() {
 	}
 
 	commander := &cmd.Cmd{HistoryFile: HISTORY_FILE, Complete: CompletionFunction, EnableShell: true}
-        commander.Prompt = "dynagosh> "
+	commander.Prompt = "dynagosh> "
 	commander.Init()
 
 	commander.Add(cmd.Command{"config",
@@ -87,42 +108,42 @@ func main() {
 			return
 		}})
 
-        commander.Add(cmd.Command{"list",
-                `
+	commander.Add(cmd.Command{"list",
+		`
                 list : display list of available tables
                 `,
-                func(string) (stop bool) {
-	            tables, err := db.ListTables()
+		func(string) (stop bool) {
+			tables, err := db.ListTables()
 
-	            if err != nil {
-		        fmt.Println(err)
-                        return
-                    }
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
-                    fmt.Println("Available tables")
+			fmt.Println("Available tables")
 
-                    for _, tableName := range tables {
-                        fmt.Println("  ", tableName)
-                    }
+			for _, tableName := range tables {
+				fmt.Println("  ", tableName)
+			}
 
-                    return
-                }})
+			return
+		}})
 
-        commander.Add(cmd.Command{"describe",
-                `
+	commander.Add(cmd.Command{"describe",
+		`
                 describe {table} : display table configuration
                 `,
-                func(line string) (stop bool) {
-                    tableName := line
-		    table, err := db.DescribeTable(tableName)
-		    if err != nil {
-			fmt.Println(err)
-		    } else {
-		        pretty.PrettyPrint(table)
-                    }
+		func(line string) (stop bool) {
+			tableName := line
+			table, err := db.DescribeTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(table)
+			}
 
-                    return
-                }})
+			return
+		}})
 
 	commander.Commands["ls"] = commander.Commands["list"]
 
