@@ -1,9 +1,13 @@
+//
+// An interactive shell for DynamoDB
+//
 package main
 
 import (
 	"../../dynago"
 
 	"code.google.com/p/gcfg"
+	"github.com/gobs/args"
 	"github.com/gobs/cmd"
 	"github.com/gobs/pretty"
 
@@ -44,6 +48,10 @@ type Config struct {
 	}
 }
 
+// Look for configFile in current directory or home directory.
+// No configuration file is NOT an error.
+// A malformed configuration file is a FATAL error.
+
 func ReadConfig(configFile string, config *Config) {
 	// configFile in current directory or full path
 	if _, err := os.Stat(configFile); err != nil {
@@ -65,12 +73,14 @@ func ReadConfig(configFile string, config *Config) {
 }
 
 var (
+	// this hold the current list of table names, to be used by the CompletionFunction
 	table_list []string
 )
 
+// return list of table names that match the input pattern (table name starts with "text")
 func CompletionFunction(text string, line string, start, stop int) []string {
 	if len(table_list) > 0 {
-	        matches := make([]string, 0, len(table_list))
+		matches := make([]string, 0, len(table_list))
 
 		for _, w := range table_list {
 			if strings.HasPrefix(w, text) {
@@ -160,6 +170,55 @@ func main() {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
+			}
+
+			return
+		}})
+
+	commander.Add(cmd.Command{"create",
+		`
+		create {tablename} hashKey:hashType [rangeKey:rangeType] [readCapacity] [writeCapacity]
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+
+			if len(args) < 2 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName := args[0]
+
+			hashKey := &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
+			var rangeKey *dynago.AttributeDefinition
+			rc := 5
+			wc := 5
+
+			if strings.Contains(args[1], ":") {
+				parts := strings.Split(args[1], ":")
+				hashKey.AttributeName = parts[0]
+				hashKey.AttributeType = parts[1]
+			} else {
+				hashKey.AttributeName = args[1]
+			}
+
+			if len(args) > 2 {
+				rangeKey := &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
+
+				if strings.Contains(args[2], ":") {
+					parts := strings.Split(args[2], ":")
+					rangeKey.AttributeName = parts[0]
+					rangeKey.AttributeType = parts[1]
+				} else {
+					rangeKey.AttributeName = args[2]
+				}
+			}
+
+			if table, err := db.CreateTable(tableName, hashKey, rangeKey, rc, wc); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(table)
+				table_list = append(table_list, tableName)
 			}
 
 			return
