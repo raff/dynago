@@ -70,9 +70,9 @@ type LocalSecondaryIndexDescription struct {
 type ProvisionedThroughputDescription struct {
 	LastDecreaseDateTime   EpochTime
 	LastIncreaseDateTime   EpochTime
-	NumberOfDecreasesToday int64
-	ReadCapacityUnits      int64
-	WriteCapacityUnits     int64
+	NumberOfDecreasesToday int
+	ReadCapacityUnits      int
+	WriteCapacityUnits     int
 }
 
 type TableDescription struct {
@@ -137,8 +137,8 @@ func (db *DBClient) DescribeTable(tableName string) (*TableDescription, error) {
 //
 
 type ProvisionedThroughputRequest struct {
-	ReadCapacityUnits  int64
-	WriteCapacityUnits int64
+	ReadCapacityUnits  int
+	WriteCapacityUnits int
 }
 
 type LocalSecondaryIndexRequest struct {
@@ -159,7 +159,7 @@ type CreateTableResult struct {
 	TableDescription TableDescription
 }
 
-func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, rangeKey *AttributeDefinition, rc, wc int64) (*TableDescription, error) {
+func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, rangeKey *AttributeDefinition, rc, wc int) (*TableDescription, error) {
 	createReq := CreateTableRequest{
 		TableName:             tableName,
 		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
