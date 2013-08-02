@@ -183,3 +183,26 @@ func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, 
 
 	return &createRes.TableDescription, nil
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// DeleteTable
+//
+
+type DeleteTableRequest struct {
+	TableName string
+}
+
+type DeleteTableResult struct {
+	Table TableDescription
+}
+
+func (db *DBClient) DeleteTable(tableName string) (*TableDescription, error) {
+	var delRes DeleteTableResult
+
+	if err := db.Query("DeleteTable", DeleteTableRequest{tableName}).Decode(&delRes); err != nil {
+		return nil, err
+	}
+
+	return &delRes.Table, nil
+}

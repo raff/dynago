@@ -77,6 +77,19 @@ var (
 	table_list []string
 )
 
+func add_to_list(table string) {
+	table_list = append(table_list, table)
+}
+
+func remove_from_list(table string) {
+	for i, t := range table_list {
+		if t == table {
+			table_list = append(table_list[:i], table_list[i+1:]...)
+			return
+		}
+	}
+}
+
 // return list of table names that match the input pattern (table name starts with "text")
 func CompletionFunction(text string, line string, start, stop int) []string {
 	if len(table_list) > 0 {
@@ -218,13 +231,31 @@ func main() {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
-				table_list = append(table_list, tableName)
+				add_to_list(tableName)
+			}
+
+			return
+		}})
+
+	commander.Add(cmd.Command{"delete",
+		`
+                delete {table} : delete table
+                `,
+		func(line string) (stop bool) {
+			tableName := line
+			table, err := db.DeleteTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(table)
+				remove_from_list(tableName)
 			}
 
 			return
 		}})
 
 	commander.Commands["ls"] = commander.Commands["list"]
+	commander.Commands["drop"] = commander.Commands["delete"]
 
 	commander.CmdLoop()
 }
