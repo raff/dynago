@@ -64,7 +64,23 @@ func ReadConfig(configFile string, config *Config) {
 	}
 }
 
+var (
+	table_list []string
+)
+
 func CompletionFunction(text string, line string, start, stop int) []string {
+	if len(table_list) > 0 {
+	        matches := make([]string, 0, len(table_list))
+
+		for _, w := range table_list {
+			if strings.HasPrefix(w, text) {
+				matches = append(matches, w)
+			}
+		}
+
+		return matches
+	}
+
 	return nil
 }
 
@@ -124,6 +140,10 @@ func main() {
 
 			for _, tableName := range tables {
 				fmt.Println("  ", tableName)
+			}
+
+			if len(tables) > 0 {
+				table_list = tables
 			}
 
 			return
