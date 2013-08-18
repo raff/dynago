@@ -52,17 +52,21 @@ type Config struct {
 // No configuration file is NOT an error.
 // A malformed configuration file is a FATAL error.
 
-func ReadConfig(configFile string, config *Config) {
+func ReadConfig(configFile string, config *Config) *Config {
+	if config == nil {
+		config = &Config{}
+	}
+
 	// configFile in current directory or full path
 	if _, err := os.Stat(configFile); err != nil {
 		if strings.Contains(configFile, "/") {
-			return
+			return config
 		}
 
 		// configFile in home directory
 		configFile = path.Join(os.Getenv("HOME"), configFile)
 		if _, err := os.Stat(configFile); err != nil {
-			return
+			return config
 		}
 	}
 
@@ -70,6 +74,8 @@ func ReadConfig(configFile string, config *Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return config
 }
 
 var (
@@ -108,8 +114,7 @@ func CompletionFunction(text string, line string, start, stop int) []string {
 }
 
 func main() {
-	var config Config
-	ReadConfig(CONFIG_FILE, &config)
+	config := ReadConfig(CONFIG_FILE, nil)
 
 	selected := config.Dynago.Profile
 
@@ -121,7 +126,7 @@ func main() {
 
 	profile := config.Profile[selected]
 	if profile == nil {
-		log.Fatal("no profile selected")
+		log.Fatal("no profile for ", selected)
 	}
 
 	db := dynago.NewDBClient()
