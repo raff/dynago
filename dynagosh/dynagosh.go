@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -254,6 +255,61 @@ func main() {
 			} else {
 				pretty.PrettyPrint(table)
 				remove_from_list(tableName)
+			}
+
+			return
+		}})
+
+	commander.Add(cmd.Command{"update",
+		`
+		update {tablename} readCapacity writeCapacity
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+
+			if len(args) < 2 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName := args[0]
+			table, err := db.DescribeTable(tableName)
+
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			rc := -1 // table.ProvisionedThroughput.ReadCapacityUnits
+			wc := -1 // table.ProvisionedThroughput.WriteCapacityUnits
+
+			if v, err := strconv.Atoi(args[1]); err == nil {
+				rc = v
+			}
+
+			if len(args) > 2 {
+				if v, err := strconv.Atoi(args[2]); err == nil {
+					wc = v
+				}
+			}
+
+			if rc <= 0 && wc <= 0 {
+				fmt.Println("no valid value for rc or wc")
+				return
+			}
+
+			if rc <= 0 {
+				rc = table.ProvisionedThroughput.ReadCapacityUnits
+			}
+
+			if wc <= 0 {
+				wc = table.ProvisionedThroughput.WriteCapacityUnits
+			}
+
+			if table, err := db.UpdateTable(tableName, rc, wc); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(table)
 			}
 
 			return

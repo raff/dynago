@@ -186,6 +186,40 @@ func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, 
 
 //////////////////////////////////////////////////////////////////////////////
 //
+// UpdateTable
+//
+
+type UpdateTableRequest struct {
+	TableName             string
+	ProvisionedThroughput ProvisionedThroughputRequest
+}
+
+type UpdateTableResult struct {
+	TableDescription TableDescription
+}
+
+func (db *DBClient) UpdateTable(tableName string, rc, wc int) (*TableDescription, error) {
+	/*
+	   here we should do a DescribeTable first, and then a loop of UpdateTable requests
+	   considering that we can only double each value every time
+	*/
+
+	updReq := UpdateTableRequest{
+		TableName:             tableName,
+		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
+	}
+
+	var updRes UpdateTableResult
+
+	if err := db.Query("UpdateTable", updReq).Decode(&updRes); err != nil {
+		return nil, err
+	}
+
+	return &updRes.TableDescription, nil
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
 // DeleteTable
 //
 
