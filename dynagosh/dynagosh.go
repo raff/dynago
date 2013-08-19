@@ -315,6 +315,42 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"get",
+		`
+		get {tablename} {hashKey} [rangeKey]
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+
+			if len(args) < 2 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName := args[0]
+			table, err := db.DescribeTable(tableName)
+
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			hashKey := &dynago.KeyValue{table.GetHashKey(), args[1]}
+			var rangeKey *dynago.KeyValue
+
+			if len(args) > 2 {
+				rangeKey = &dynago.KeyValue{table.GetRangeKey(), args[2]}
+			}
+
+			if item, _, err := db.GetItem(table.TableName, hashKey, rangeKey, nil, false, false); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(item)
+			}
+
+			return
+		}})
+
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["drop"] = commander.Commands["delete"]
 

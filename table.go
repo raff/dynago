@@ -9,13 +9,6 @@ const (
 	HASH_KEY_TYPE  = "HASH"
 	RANGE_KEY_TYPE = "RANGE"
 
-	STRING_ATTRIBUTE     = "S"
-	STRING_SET_ATTRIBUTE = "SS"
-	NUMBER_ATTRIBUTE     = "N"
-	NUMBER_SET_ATTRIBUTE = "NS"
-	BINARY_ATTRIBUTE     = "B"
-	BINARY_SET_ATTRIBUTE = "BS"
-
 	TABLE_STATUS_CREATING = "CREATING"
 	TABLE_STATUS_DELETING = "DELETING"
 	TABLE_STATUS_UPDATING = "UPDATING"
@@ -88,6 +81,28 @@ type TableDescription struct {
 	TableName      string
 	TableSizeBytes int64
 	TableStatus    string
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+func (table *TableDescription) GetHashKey() string {
+	for _, s := range table.KeySchema {
+		if s.KeyType == HASH_KEY_TYPE {
+			return s.AttributeName
+		}
+	}
+
+	return ""
+}
+
+func (table *TableDescription) GetRangeKey() string {
+	for _, s := range table.KeySchema {
+		if s.KeyType == RANGE_KEY_TYPE {
+			return s.AttributeName
+		}
+	}
+
+	return ""
 }
 
 //////////////////////////////////////////////////////////////////////////////
