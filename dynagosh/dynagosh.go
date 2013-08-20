@@ -9,6 +9,7 @@ import (
 	"code.google.com/p/gcfg"
 	"github.com/gobs/args"
 	"github.com/gobs/cmd"
+	"github.com/gobs/httpclient"
 	"github.com/gobs/pretty"
 
 	"fmt"
@@ -39,6 +40,8 @@ type Config struct {
 	Dynago struct {
 		// define default profile
 		Profile string
+		// enable request debugging
+		Debug bool
 	}
 
 	// list of named profiles
@@ -128,6 +131,10 @@ func main() {
 	profile := config.Profile[selected]
 	if profile == nil {
 		log.Fatal("no profile for ", selected)
+	}
+
+	if config.Dynago.Debug {
+		httpclient.StartLogging(true, true)
 	}
 
 	db := dynago.NewDBClient()
@@ -317,7 +324,7 @@ func main() {
 
 	commander.Add(cmd.Command{"get",
 		`
-		get {tablename} {hashKey} [rangeKey]
+		get {tablename} {hashKey} [rangeKey] [attributes]
 		`,
 		func(line string) (stop bool) {
 			args := args.GetArgs(line)
@@ -340,9 +347,18 @@ func main() {
 
 			if len(args) > 2 {
 				rangeKey = &dynago.KeyValue{table.GetRangeKey(), args[2]}
+			} else if table.GetRangeKey() != "" {
+				fmt.Println("required rangeKey value")
+				return
 			}
 
-			if item, _, err := db.GetItem(table.TableName, hashKey, rangeKey, nil, false, false); err != nil {
+			var attributes []string
+
+			if len(args) > 3 {
+				attributes = args[3:]
+			}
+
+			if item, _, err := db.GetItem(table.TableName, hashKey, rangeKey, attributes, false, true); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(item)
