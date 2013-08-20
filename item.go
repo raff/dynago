@@ -1,5 +1,12 @@
 package dynago
 
+const (
+	SELECT_ALL = "ALL_ATTRIBUTES"
+	SELECT_ALL_PROJECTED = "ALL_PROJECTED_ATTRIBUTES"
+	SELECT_SPECIFIC = "SPECIFIC_ATTRIBUTES"
+	SELECT_COUNT = "COUNT"
+)
+
 var (
 	RETURN_CONSUMED = map[bool]string{true: "TOTAL", false: "NONE"}
 )
@@ -54,4 +61,21 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 	}
 
 	return &getRes.Item, getRes.ConsumedCapacity.CapacityUnits, nil
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Scan
+//
+
+type ScanRequest struct {
+	TableName string
+	AttributesToGet []string
+	ExclusiveStartKey map[string]AttributeValue
+	ScanFilter map[string]Condition
+	Limit int
+	Segment int
+	TotalSegments int
+	Select string
+	ReturnConsumedCapacity string
 }
