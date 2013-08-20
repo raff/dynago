@@ -84,28 +84,6 @@ type TableDescription struct {
 }
 
 //////////////////////////////////////////////////////////////////////////////
-
-func (table *TableDescription) GetHashKey() string {
-	for _, s := range table.KeySchema {
-		if s.KeyType == HASH_KEY_TYPE {
-			return s.AttributeName
-		}
-	}
-
-	return ""
-}
-
-func (table *TableDescription) GetRangeKey() string {
-	for _, s := range table.KeySchema {
-		if s.KeyType == RANGE_KEY_TYPE {
-			return s.AttributeName
-		}
-	}
-
-	return ""
-}
-
-//////////////////////////////////////////////////////////////////////////////
 //
 // ListTables
 //
@@ -254,4 +232,53 @@ func (db *DBClient) DeleteTable(tableName string) (*TableDescription, error) {
 	}
 
 	return &delRes.Table, nil
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// TableInstance
+//
+
+type TableInstance struct {
+	DB   *DBClient
+	Name string
+	Keys map[string]*AttributeDefinition
+}
+
+func (db *DBClient) GetTable(tableName string) (*TableInstance, error) {
+
+	desc, err := db.DescribeTable(tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	table := TableInstance{DB: db, Name: desc.TableName, Keys: map[string]*AttributeDefinition{}}
+
+	for _, ks := range desc.KeySchema {
+		table.Keys[ks.KeyType] = desc.getAttribute(ks.AttributeName)
+
+	}
+
+	return &table, nil
+}
+
+func (table *TableDescription) getAttribute(name string) *AttributeDefinition {
+	for _, a := range table.AttributeDefinitions {
+		if a.AttributeName == name {
+			return &a
+		}
+	}
+
+	return nil
+}
+
+func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, attributes []string, consistent bool, consumed bool) (*ItemValues, float32, error) {
+	hkey := &KeyValue{*table.Keys[HASH_KEY_TYPE], hashKey}
+
+	var rkey *KeyValue
+	if rangeKey != nil && table.Keys[RANGE_KEY_TYPE] != nil {
+		rkey = &KeyValue{*table.Keys[RANGE_KEY_TYPE], rangeKey}
+	}
+
+	return table.DB.GetItem(table.Name, hkey, rkey, attributes, consistent, consumed)
 }

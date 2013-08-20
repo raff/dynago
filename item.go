@@ -10,8 +10,8 @@ type ConsumedCapacityDescription struct {
 }
 
 type KeyValue struct {
-	KeyName  string
-	KeyValue interface{}
+	Key   AttributeDefinition
+	Value interface{}
 }
 
 type ItemValues map[string]AttributeValue
@@ -39,10 +39,12 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 
 	getReq := GetItemRequest{TableName: tableName, AttributesToGet: attributes, ConsistentRead: consistent, ReturnConsumedCapacity: RETURN_CONSUMED[consumed]}
 	if hashKey != nil {
-		getReq.Key = map[string]AttributeValue{hashKey.KeyName: MakeAttributeValue(hashKey.KeyValue)}
+		getReq.Key = MakeAttribute(hashKey.Key, hashKey.Value)
 	}
 	if rangeKey != nil {
-		getReq.Key[rangeKey.KeyName] = MakeAttributeValue(rangeKey.KeyValue)
+		name := rangeKey.Key.AttributeName
+		value := MakeAttribute(rangeKey.Key, rangeKey.Value)
+		getReq.Key[name] = value[name]
 	}
 
 	var getRes GetItemResult

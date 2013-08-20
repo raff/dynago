@@ -1,6 +1,7 @@
 package dynago
 
 import (
+	"fmt"
 	"strconv"
 )
 
@@ -18,6 +19,7 @@ var (
 )
 
 type AttributeValue map[string]interface{}
+type AttributeNameValue map[string]AttributeValue
 
 func MakeAttributeValue(value interface{}) AttributeValue {
 	switch v := value.(type) {
@@ -56,4 +58,24 @@ func MakeAttributeValue(value interface{}) AttributeValue {
 	default:
 		return AttributeValue{}
 	}
+}
+
+func MakeAttribute(attr AttributeDefinition, value interface{}) AttributeNameValue {
+	v := ""
+
+	switch attr.AttributeType {
+	case STRING_ATTRIBUTE:
+		v = fmt.Sprintf("%v", value)
+
+	case NUMBER_ATTRIBUTE:
+		switch value := value.(type) {
+		case string:
+			v = value
+
+		default:
+			v = fmt.Sprintf("%f", value)
+		}
+	}
+
+	return AttributeNameValue{attr.AttributeName: AttributeValue{attr.AttributeType: v}}
 }

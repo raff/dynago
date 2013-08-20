@@ -335,21 +335,18 @@ func main() {
 			}
 
 			tableName := args[0]
-			table, err := db.DescribeTable(tableName)
+			table, err := db.GetTable(tableName)
 
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			hashKey := &dynago.KeyValue{table.GetHashKey(), args[1]}
-			var rangeKey *dynago.KeyValue
+			hashKey := args[1]
+			var rangeKey string
 
 			if len(args) > 2 {
-				rangeKey = &dynago.KeyValue{table.GetRangeKey(), args[2]}
-			} else if table.GetRangeKey() != "" {
-				fmt.Println("required rangeKey value")
-				return
+				rangeKey = args[2]
 			}
 
 			var attributes []string
@@ -358,10 +355,11 @@ func main() {
 				attributes = args[3:]
 			}
 
-			if item, _, err := db.GetItem(table.TableName, hashKey, rangeKey, attributes, false, true); err != nil {
+			if item, consumed, err := table.GetItem(hashKey, rangeKey, attributes, false, true); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(item)
+				fmt.Println("consumed:", consumed)
 			}
 
 			return
