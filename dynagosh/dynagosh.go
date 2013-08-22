@@ -365,6 +365,42 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"scan",
+		`
+		scan {tablename}
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+			limit := 0
+
+			if len(args) > 1 && strings.HasPrefix(args[0], "-") {
+				limit, _ = strconv.Atoi(args[0][1:])
+				args = args[1:]
+				
+			}
+
+			if len(args) < 1 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName := args[0]
+			scan := dynago.Scan(tableName)
+
+			if limit > 0 {
+				scan = scan.WithLimit(limit)
+			}
+
+			if items, _, consumed, err := scan.Exec(db); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(items)
+				fmt.Println("consumed:", consumed)
+			}
+
+			return
+		}})
+
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["drop"] = commander.Commands["delete"]
 

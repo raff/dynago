@@ -1,19 +1,19 @@
 package dynago
 
 const (
-	_EQ = "EQ"
-	_NE = "NE"
-	_LE = "LE"
-	_LT = "LT"
-	_GE = "GE"
-	_GT = "GT"
-	_BEGINS_WITH = "BEGINS_WITH"
-	_BETWEEN = "BETWEEN"
-	_NULL = "NULL"
-	_NOT_NULL = "NOT_NULL"
-	_CONTAINS = "CONTAINS"
+	_EQ           = "EQ"
+	_NE           = "NE"
+	_LE           = "LE"
+	_LT           = "LT"
+	_GE           = "GE"
+	_GT           = "GT"
+	_BEGINS_WITH  = "BEGINS_WITH"
+	_BETWEEN      = "BETWEEN"
+	_NULL         = "NULL"
+	_NOT_NULL     = "NOT_NULL"
+	_CONTAINS     = "CONTAINS"
 	_NOT_CONTAINS = "NOT_CONTAINS"
-	_IN = "IN"
+	_IN           = "IN"
 )
 
 type Condition struct {
