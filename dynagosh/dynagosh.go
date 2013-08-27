@@ -118,8 +118,9 @@ func CompletionFunction(text string, line string, start, stop int) []string {
 }
 
 func main() {
-	config := ReadConfig(CONFIG_FILE, nil)
+	var nextKey dynago.AttributeNameValue
 
+	config := ReadConfig(CONFIG_FILE, nil)
 	selected := config.Dynago.Profile
 
 	if len(os.Args) > 1 {
@@ -367,17 +368,20 @@ func main() {
 
 	commander.Add(cmd.Command{"scan",
 		`
-		scan {tablename}
+		scan {tablename} [--limit=pagesize]
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
-			limit := 0
+			flags := args.NewFlags("scan")
 
-			if len(args) > 1 && strings.HasPrefix(args[0], "-") {
-				limit, _ = strconv.Atoi(args[0][1:])
-				args = args[1:]
-				
-			}
+			limit := flags.Int("limit", 0, "maximum number of items per page")
+			count := flags.Bool("count", false, "only return item count")
+			next := flags.Bool("next", false, "get next page")
+			consumed := flags.Bool("consumed", false, "return consumed capacity")
+			segment := flags.Int("segment", 0, "segment number")
+			total := flags.Int("total", 0, "total segment")
+
+			args.ParseFlags(flags, line)
+			args := flags.Args()
 
 			if len(args) < 1 {
 				fmt.Println("not enough arguments")
@@ -385,17 +389,32 @@ func main() {
 			}
 
 			tableName := args[0]
-			scan := dynago.Scan(tableName)
+			scan := dynago.Scan(tableName).
+				WithSegment(*segment, *total)
 
-			if limit > 0 {
-				scan = scan.WithLimit(limit)
+			if *limit > 0 {
+				scan = scan.WithLimit(*limit)
 			}
 
-			if items, _, consumed, err := scan.Exec(db); err != nil {
+			if *count {
+				scan = scan.WithSelect(dynago.SELECT_COUNT)
+			}
+
+			if *next {
+				scan = scan.WithStartKey(nextKey)
+			}
+
+			if *consumed {
+				scan = scan.WithConsumed(true)
+			}
+
+			if items, lastKey, consumed, err := scan.Exec(db); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(items)
 				fmt.Println("consumed:", consumed)
+
+				nextKey = lastKey
 			}
 
 			return
