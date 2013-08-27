@@ -1,10 +1,10 @@
 package dynago
 
 const (
-	SELECT_ALL           = "ALL_ATTRIBUTES"
-	SELECT_ALL_PROJECTED = "ALL_PROJECTED_ATTRIBUTES"
-	SELECT_SPECIFIC      = "SPECIFIC_ATTRIBUTES"
-	SELECT_COUNT         = "COUNT"
+	SELECT_ALL        = "ALL_ATTRIBUTES"
+	SELECT_PROJECTED  = "ALL_PROJECTED_ATTRIBUTES"
+	SELECT_ATTRIBUTES = "SPECIFIC_ATTRIBUTES"
+	SELECT_COUNT      = "COUNT"
 )
 
 var (
@@ -73,11 +73,11 @@ type ScanRequest struct {
 	AttributesToGet        []string
 	ExclusiveStartKey      AttributeNameValue
 	ScanFilter             map[string]Condition
-	Limit                  int	`json:",omitempty"`
-	Segment                int	`json:",omitempty"`
-	TotalSegments          int	`json:",omitempty"`
-	Select                 string	`json:",omitempty"`
-	ReturnConsumedCapacity string	`json:",omitempty"`
+	Limit                  int    `json:",omitempty"`
+	Segment                int    `json:",omitempty"`
+	TotalSegments          int    `json:",omitempty"`
+	Select                 string `json:",omitempty"`
+	ReturnConsumedCapacity string `json:",omitempty"`
 }
 
 type ScanResult struct {
