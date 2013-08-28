@@ -119,6 +119,7 @@ func CompletionFunction(text string, line string, start, stop int) []string {
 
 func main() {
 	var nextKey dynago.AttributeNameValue
+	var table *dynago.TableInstance
 
 	config := ReadConfig(CONFIG_FILE, nil)
 	selected := config.Dynago.Profile
@@ -197,6 +198,23 @@ func main() {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
+			}
+
+			return
+		}})
+
+	commander.Add(cmd.Command{"use",
+		`
+                use {table} : select table for queries
+                `,
+		func(line string) (stop bool) {
+			tableName := line
+			tableInstance, err := db.GetTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				table = tableInstance
+				commander.Prompt = "dynagosh: " + tableName + "> "
 			}
 
 			return
@@ -366,13 +384,75 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"query",
+		`
+		query [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] hash-key-value
+		`,
+		func(line string) (stop bool) {
+			flags := args.NewFlags("query")
+
+			ptable := flags.String("table", "", "table name")
+			limit := flags.Int("limit", 0, "maximum number of items per page")
+			count := flags.Bool("count", false, "only return item count")
+			next := flags.Bool("next", false, "get next page")
+			consumed := flags.Bool("consumed", false, "return consumed capacity")
+
+			args.ParseFlags(flags, line)
+			args := flags.Args()
+
+			tableName := *ptable
+			if len(tableName) < 1 {
+				if table != nil {
+					tableName = table.Name
+				} else {
+					fmt.Println("no table selected")
+					return
+				}
+			}
+
+			if len(args) < 1 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			query := dynago.Query(tableName)
+
+			if *limit > 0 {
+				query = query.WithLimit(*limit)
+			}
+
+			if *count {
+				query = query.WithSelect(dynago.SELECT_COUNT)
+			}
+
+			if *next {
+				query = query.WithStartKey(nextKey)
+			}
+
+			if *consumed {
+				query = query.WithConsumed(true)
+			}
+
+			if items, lastKey, consumed, err := query.Exec(db); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(items)
+				fmt.Println("consumed:", consumed)
+
+				nextKey = lastKey
+			}
+
+			return
+		}})
+
 	commander.Add(cmd.Command{"scan",
 		`
-		scan {tablename} [--limit=pagesize]
+		scan [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] [--segment=n --total=m]
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("scan")
 
+			ptable := flags.String("table", "", "table name")
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			count := flags.Bool("count", false, "only return item count")
 			next := flags.Bool("next", false, "get next page")
@@ -381,14 +461,18 @@ func main() {
 			total := flags.Int("total", 0, "total segment")
 
 			args.ParseFlags(flags, line)
-			args := flags.Args()
+			//args := flags.Args()
 
-			if len(args) < 1 {
-				fmt.Println("not enough arguments")
-				return
+			tableName := *ptable
+			if len(tableName) < 1 {
+				if table != nil {
+					tableName = table.Name
+				} else {
+					fmt.Println("no table selected")
+					return
+				}
 			}
 
-			tableName := args[0]
 			scan := dynago.Scan(tableName).
 				WithSegment(*segment, *total)
 

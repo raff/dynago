@@ -60,8 +60,8 @@ func EncodeValue(value interface{}) AttributeValue {
 	}
 }
 
-// Encode an attribute with its value
-func EncodeAttribute(attr AttributeDefinition, value interface{}) AttributeNameValue {
+// Encode a value according to the attribute type
+func EncodeAttributeValue(attr AttributeDefinition, value interface{}) AttributeValue {
 	var v interface{}
 
 	switch attr.AttributeType {
@@ -84,5 +84,10 @@ func EncodeAttribute(attr AttributeDefinition, value interface{}) AttributeNameV
 		}
 	}
 
-	return AttributeNameValue{attr.AttributeName: AttributeValue{attr.AttributeType: v}}
+	return AttributeValue{attr.AttributeType: v}
+}
+
+// Encode an attribute with its value
+func EncodeAttribute(attr AttributeDefinition, value interface{}) AttributeNameValue {
+	return AttributeNameValue{attr.AttributeName: EncodeAttributeValue(attr, value)}
 }

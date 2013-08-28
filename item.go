@@ -45,13 +45,9 @@ type GetItemResult struct {
 func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) (*ItemValues, float32, error) {
 
 	getReq := GetItemRequest{TableName: tableName, AttributesToGet: attributes, ConsistentRead: consistent, ReturnConsumedCapacity: RETURN_CONSUMED[consumed]}
-	if hashKey != nil {
-		getReq.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
-	}
+	getReq.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
 	if rangeKey != nil {
-		name := rangeKey.Key.AttributeName
-		value := EncodeAttribute(rangeKey.Key, rangeKey.Value)
-		getReq.Key[name] = value[name]
+		getReq.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
 	}
 
 	var getRes GetItemResult
@@ -61,6 +57,84 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 	}
 
 	return &getRes.Item, getRes.ConsumedCapacity.CapacityUnits, nil
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Query
+//
+
+type QueryRequest struct {
+	TableName              string
+	AttributesToGet        []string
+	ScanIndexForward       bool
+	ExclusiveStartKey      AttributeNameValue
+	KeyConditions          map[string]Condition
+	IndexName              string `json:",omitempty"`
+	Limit                  int    `json:",omitempty"`
+	Select                 string `json:",omitempty"`
+	ReturnConsumedCapacity string `json:",omitempty"`
+}
+
+type QueryResult struct {
+	Items            []ItemValues
+	ConsumedCapacity ConsumedCapacityDescription
+	LastEvaluatedKey AttributeNameValue
+	Count            int
+	ScannedCount     int
+}
+
+func Query(tableName string) *QueryRequest {
+	return &QueryRequest{TableName: tableName}
+}
+
+func (queryReq *QueryRequest) WithAttributes(attributes []string) *QueryRequest {
+	queryReq.AttributesToGet = attributes
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithStartKey(startKey AttributeNameValue) *QueryRequest {
+	queryReq.ExclusiveStartKey = startKey
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithIndex(indexName string) *QueryRequest {
+	queryReq.IndexName = indexName
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithCondition(attrName string, condition Condition) *QueryRequest {
+	if queryReq.KeyConditions == nil {
+		queryReq.KeyConditions = map[string]Condition{attrName: condition}
+	} else {
+		queryReq.KeyConditions[attrName] = condition
+	}
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithLimit(limit int) *QueryRequest {
+	queryReq.Limit = limit
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithSelect(selectValue string) *QueryRequest {
+	queryReq.Select = selectValue
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
+	queryReq.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
+	return queryReq
+}
+
+func (queryReq *QueryRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue, float32, error) {
+	var queryRes QueryResult
+
+	if err := db.Query("Query", queryReq).Decode(&queryRes); err != nil {
+		return nil, nil, 0.0, err
+	}
+
+	return queryRes.Items, queryRes.LastEvaluatedKey, queryRes.ConsumedCapacity.CapacityUnits, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -79,20 +153,6 @@ type ScanRequest struct {
 	Select                 string `json:",omitempty"`
 	ReturnConsumedCapacity string `json:",omitempty"`
 }
-
-type ScanResult struct {
-	Items            []ItemValues
-	ConsumedCapacity ConsumedCapacityDescription
-	LastEvaluatedKey AttributeNameValue
-	Count            int
-	ScannedCount     int
-}
-
-/*
-func (db *DBClient) Scan(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) ([]ItemValues, float32, error) {
-	return nil, 0.0, nil
-}
-*/
 
 func Scan(tableName string) *ScanRequest {
 	return &ScanRequest{TableName: tableName}
@@ -139,7 +199,7 @@ func (scanReq *ScanRequest) WithConsumed(consumed bool) *ScanRequest {
 }
 
 func (scanReq *ScanRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue, float32, error) {
-	var scanRes ScanResult
+	var scanRes QueryResult
 
 	if err := db.Query("Scan", scanReq).Decode(&scanRes); err != nil {
 		return nil, nil, 0.0, err
