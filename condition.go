@@ -21,6 +21,8 @@ type Condition struct {
 	ComparisonOperator string
 }
 
+type ConditionFunc func(...AttributeValue) Condition
+
 func EQ(v AttributeValue) Condition {
 	return Condition{[]AttributeValue{v}, "EQ"}
 }
