@@ -66,14 +66,16 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 
 type QueryRequest struct {
 	TableName              string
-	AttributesToGet        []string
+	AttributesToGet        []string `json:",omitempty"`
 	ScanIndexForward       bool
-	ExclusiveStartKey      AttributeNameValue
-	KeyConditions          map[string]Condition
-	IndexName              string `json:",omitempty"`
-	Limit                  int    `json:",omitempty"`
-	Select                 string `json:",omitempty"`
-	ReturnConsumedCapacity string `json:",omitempty"`
+	ExclusiveStartKey      AttributeNameValue   `json:",omitempty"`
+	KeyConditions          map[string]Condition `json:",omitempty"`
+	IndexName              string               `json:",omitempty"`
+	Limit                  int                  `json:",omitempty"`
+	Select                 string               `json:",omitempty"`
+	ReturnConsumedCapacity string               `json:",omitempty"`
+
+	table *TableInstance
 }
 
 type QueryResult struct {
@@ -84,8 +86,12 @@ type QueryResult struct {
 	ScannedCount     int
 }
 
+func QueryTable(table *TableInstance) *QueryRequest {
+	return &QueryRequest{TableName: table.Name, ScanIndexForward: true, KeyConditions: make(map[string]Condition), table: table}
+}
+
 func Query(tableName string) *QueryRequest {
-	return &QueryRequest{TableName: tableName}
+	return &QueryRequest{TableName: tableName, ScanIndexForward: true, KeyConditions: make(map[string]Condition)}
 }
 
 func (queryReq *QueryRequest) WithAttributes(attributes []string) *QueryRequest {
@@ -104,11 +110,15 @@ func (queryReq *QueryRequest) WithIndex(indexName string) *QueryRequest {
 }
 
 func (queryReq *QueryRequest) WithCondition(attrName string, condition Condition) *QueryRequest {
-	if queryReq.KeyConditions == nil {
-		queryReq.KeyConditions = map[string]Condition{attrName: condition}
-	} else {
-		queryReq.KeyConditions[attrName] = condition
+	queryReq.KeyConditions[attrName] = condition
+	return queryReq
+}
+
+func (queryReq *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryRequest {
+	for k, v := range cond {
+		queryReq.KeyConditions[k] = v
 	}
+
 	return queryReq
 }
 
@@ -128,6 +138,10 @@ func (queryReq *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
 }
 
 func (queryReq *QueryRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue, float32, error) {
+	if db == nil && queryReq.table != nil {
+		db = queryReq.table.DB
+	}
+
 	var queryRes QueryResult
 
 	if err := db.Query("Query", queryReq).Decode(&queryRes); err != nil {
@@ -152,6 +166,12 @@ type ScanRequest struct {
 	TotalSegments          int    `json:",omitempty"`
 	Select                 string `json:",omitempty"`
 	ReturnConsumedCapacity string `json:",omitempty"`
+
+	table *TableInstance
+}
+
+func ScanTable(table *TableInstance) *ScanRequest {
+	return &ScanRequest{TableName: table.Name, table: table}
 }
 
 func Scan(tableName string) *ScanRequest {
