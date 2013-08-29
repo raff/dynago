@@ -283,16 +283,22 @@ func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, a
 	return table.DB.GetItem(table.Name, hkey, rkey, attributes, consistent, consumed)
 }
 
-//func (table *TableInstance) Query(hashKey interface{}, rangeKey interface{}, cond ConditionFunc, attributes []string, consistent bool, consumed bool) ([]ItemValues, float32, error) {
-
-func (table *TableInstance) Query(hashKey interface{}, rangeCond ConditionFunc, rangeValues ...interface{}) *QueryRequest {
-	query := Query(table.Name)
+func (table *TableInstance) Query(hashKey interface{}) *QueryRequest {
+	query := QueryTable(table)
 	hkey := *table.Keys[HASH_KEY_TYPE]
 	query = query.WithCondition(hkey.AttributeName, EQ(EncodeAttributeValue(hkey, hashKey)))
 
-	if rkey := table.Keys[RANGE_KEY_TYPE]; rkey != nil && rangeCond != nil {
-		query = query.WithCondition((*rkey).AttributeName, rangeCond(EncodeAttributeValue(*rkey, rangeValues)))
-	}
-
 	return query
+}
+
+func (table *TableInstance) RangeKey() *AttributeDefinition {
+	return table.Keys[RANGE_KEY_TYPE]
+}
+
+func (table *TableInstance) HashKey() *AttributeDefinition {
+	return table.Keys[HASH_KEY_TYPE]
+}
+
+func (attr *AttributeDefinition) EQ(value interface{}) AttrCondition {
+	return map[string]Condition{attr.AttributeName: EQ(EncodeAttributeValue(*attr, value))}
 }
