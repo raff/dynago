@@ -17,60 +17,64 @@ const (
 )
 
 type Condition struct {
-	AttributeValueList []AttributeValue
 	ComparisonOperator string
+	AttributeValueList []AttributeValue
 }
 
-type ConditionFunc func(...AttributeValue) Condition
+type AttrCondition map[string]Condition
+
+var (
+	NO_CONDITION = AttrCondition{}
+)
 
 func EQ(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "EQ"}
+	return Condition{"EQ", []AttributeValue{v}}
 }
 
 func NE(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "NE"}
+	return Condition{"NE", []AttributeValue{v}}
 }
 
 func LE(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "LE"}
+	return Condition{"LE", []AttributeValue{v}}
 }
 
 func LT(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "LT"}
+	return Condition{"LT", []AttributeValue{v}}
 }
 
 func GE(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "GE"}
+	return Condition{"GE", []AttributeValue{v}}
 }
 
 func GT(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "GT"}
+	return Condition{"GT", []AttributeValue{v}}
 }
 
 func NOT_NULL() Condition {
-	return Condition{[]AttributeValue{}, "NOT_NULL"}
+	return Condition{"NOT_NULL", []AttributeValue{}}
 }
 
 func NULL() Condition {
-	return Condition{[]AttributeValue{}, "NULL"}
+	return Condition{"NULL", []AttributeValue{}}
 }
 
 func CONTAINS(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "CONTAINS"}
+	return Condition{"CONTAINS", []AttributeValue{v}}
 }
 
 func NOT_CONTAINS(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "NOT_CONTAINS"}
+	return Condition{"NOT_CONTAINS", []AttributeValue{v}}
 }
 
 func BEGINS_WITH(v AttributeValue) Condition {
-	return Condition{[]AttributeValue{v}, "BEGINS_WITH"}
+	return Condition{"BEGINS_WITH", []AttributeValue{v}}
 }
 
 func IN(v []AttributeValue) Condition {
-	return Condition{v, "IN"}
+	return Condition{"IN", v}
 }
 
 func BETWEEN(v1, v2 AttributeValue) Condition {
-	return Condition{[]AttributeValue{v1, v2}, "BETWEEN"}
+	return Condition{"BETWEEN", []AttributeValue{v1, v2}}
 }
