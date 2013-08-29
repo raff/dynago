@@ -298,7 +298,3 @@ func (table *TableInstance) RangeKey() *AttributeDefinition {
 func (table *TableInstance) HashKey() *AttributeDefinition {
 	return table.Keys[HASH_KEY_TYPE]
 }
-
-func (attr *AttributeDefinition) EQ(value interface{}) AttrCondition {
-	return map[string]Condition{attr.AttributeName: EQ(EncodeAttributeValue(*attr, value))}
-}

@@ -1,21 +1,5 @@
 package dynago
 
-const (
-	_EQ           = "EQ"
-	_NE           = "NE"
-	_LE           = "LE"
-	_LT           = "LT"
-	_GE           = "GE"
-	_GT           = "GT"
-	_BEGINS_WITH  = "BEGINS_WITH"
-	_BETWEEN      = "BETWEEN"
-	_NULL         = "NULL"
-	_NOT_NULL     = "NOT_NULL"
-	_CONTAINS     = "CONTAINS"
-	_NOT_CONTAINS = "NOT_CONTAINS"
-	_IN           = "IN"
-)
-
 type Condition struct {
 	ComparisonOperator string
 	AttributeValueList []AttributeValue
@@ -25,6 +9,7 @@ type AttrCondition map[string]Condition
 
 var (
 	NO_CONDITION = AttrCondition{}
+	NO_VALUE     = []AttributeValue{}
 )
 
 func EQ(v AttributeValue) Condition {
@@ -52,11 +37,11 @@ func GT(v AttributeValue) Condition {
 }
 
 func NOT_NULL() Condition {
-	return Condition{"NOT_NULL", []AttributeValue{}}
+	return Condition{"NOT_NULL", NO_VALUE}
 }
 
 func NULL() Condition {
-	return Condition{"NULL", []AttributeValue{}}
+	return Condition{"NULL", NO_VALUE}
 }
 
 func CONTAINS(v AttributeValue) Condition {
@@ -77,4 +62,56 @@ func IN(v []AttributeValue) Condition {
 
 func BETWEEN(v1, v2 AttributeValue) Condition {
 	return Condition{"BETWEEN", []AttributeValue{v1, v2}}
+}
+
+func (attr *AttributeDefinition) EQ(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: EQ(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) NE(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: NE(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) LE(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: LE(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) LT(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: LT(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) GE(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: GE(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) GT(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: GT(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) NOT_NULL() AttrCondition {
+	return AttrCondition{attr.AttributeName: NOT_NULL()}
+}
+
+func (attr *AttributeDefinition) NULL() AttrCondition {
+	return AttrCondition{attr.AttributeName: NULL()}
+}
+
+func (attr *AttributeDefinition) CONTAINS(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: CONTAINS(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) NOT_CONTAINS(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: NOT_CONTAINS(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) BEGINS_WITH(value interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: BEGINS_WITH(EncodeAttributeValue(*attr, value))}
+}
+
+func (attr *AttributeDefinition) IN(values []interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: IN(EncodeAttributeValues(*attr, values))}
+}
+
+func (attr *AttributeDefinition) BETWEEN(value1, value2 interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: BETWEEN(EncodeAttributeValue(*attr, value1), EncodeAttributeValue(*attr, value2))}
 }
