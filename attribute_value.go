@@ -82,9 +82,47 @@ func EncodeAttributeValue(attr AttributeDefinition, value interface{}) Attribute
 		default:
 			v = fmt.Sprintf("%f", value)
 		}
+
+	case NUMBER_SET_ATTRIBUTE:
+		switch value := value.(type) {
+		case []string:
+			v = value
+
+		case []int:
+			av := make([]string, len(value))
+			for i, n := range value {
+				av[i] = fmt.Sprintf("%v", n)
+			}
+			v = av
+
+		case []float32:
+			av := make([]string, len(value))
+			for i, n := range value {
+				av[i] = fmt.Sprintf("%f", n)
+			}
+			v = av
+
+		case []float64:
+			av := make([]string, len(value))
+			for i, n := range value {
+				av[i] = fmt.Sprintf("%f", n)
+			}
+			v = av
+		}
 	}
 
 	return AttributeValue{attr.AttributeType: v}
+}
+
+func EncodeAttributeValues(attr AttributeDefinition, values ...interface{}) []AttributeValue {
+
+	result := make([]AttributeValue, len(values))
+
+	for i, v := range values {
+		result[i] = EncodeAttributeValue(attr, v)
+	}
+
+	return result
 }
 
 // Encode an attribute with its value
