@@ -12,6 +12,8 @@ import (
 	"github.com/gobs/httpclient"
 	"github.com/gobs/pretty"
 
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -115,6 +117,32 @@ func CompletionFunction(text string, line string, start, stop int) []string {
 	}
 
 	return nil
+}
+
+type RangeCondition struct {
+	Operator string
+	Value    string
+}
+
+func (cond *RangeCondition) Set(value string) error {
+	if len(cond.Value) > 0 {
+		return errors.New("range-condition value already set")
+	}
+
+	cond.Value = value
+	return nil
+}
+
+func (cond *RangeCondition) String() string {
+	return fmt.Sprintf("%s: %v", cond.Operator, cond.Value)
+}
+
+func (cond *RangeCondition) SetOperator(f *flag.Flag) {
+	if f.Name == "range" {
+		cond.Operator = "EQ"
+	} else if strings.HasPrefix(f.Name, "range-") {
+		cond.Operator = strings.ToUpper(f.Name[6:])
+	}
 }
 
 func main() {
@@ -386,7 +414,7 @@ func main() {
 
 	commander.Add(cmd.Command{"query",
 		`
-		query [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] hash-key-value range-key-value
+		query [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] --hash hash-key-value [--range range-key-value]
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("query")
@@ -397,8 +425,22 @@ func main() {
 			next := flags.Bool("next", false, "get next page")
 			consumed := flags.Bool("consumed", false, "return consumed capacity")
 
+			hashKey := flags.String("hash", "", "hash-key value")
+
+			var rangeCond RangeCondition
+
+			flags.Var(&rangeCond, "range", "range-key value")
+			flags.Var(&rangeCond, "range-eq", "range-key equal value")
+			flags.Var(&rangeCond, "range-ne", "range-key not-equal value")
+			flags.Var(&rangeCond, "range-le", "range-key less-or-equal value")
+			flags.Var(&rangeCond, "range-lt", "range-key less-than value")
+			flags.Var(&rangeCond, "range-ge", "range-key less-or-equal value")
+			flags.Var(&rangeCond, "range-gt", "range-key less-than value")
+
 			args.ParseFlags(flags, line)
 			args := flags.Args()
+
+			flags.Visit(rangeCond.SetOperator)
 
 			table := selectedTable
 
@@ -414,15 +456,24 @@ func main() {
 				return
 			}
 
-			if len(args) < 1 {
-				fmt.Println("not enough arguments")
-				return
+			if len(*hashKey) < 1 {
+				if len(args) < 1 {
+					fmt.Println("not enough arguments")
+					return
+				}
+
+				*hashKey = args[0]
+
+				if len(rangeCond.Operator) < 1 && len(args) > 1 {
+					rangeCond.Operator = "EQ"
+					rangeCond.Value = args[1]
+				}
 			}
 
-			query := table.Query(args[0])
+			query := table.Query(*hashKey)
 
-			if len(args) > 1 {
-				query = query.WithAttrCondition(table.RangeKey().EQ(args[1]))
+			if len(rangeCond.Operator) > 0 {
+				query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
 			}
 
 			if *limit > 0 {
