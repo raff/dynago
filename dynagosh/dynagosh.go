@@ -13,7 +13,7 @@ import (
 	"github.com/gobs/pretty"
 
 	"errors"
-	"flag"
+	//"flag"
 	"fmt"
 	"log"
 	"os"
@@ -124,29 +124,32 @@ type RangeCondition struct {
 	Value    string
 }
 
-func (cond *RangeCondition) Set(value string) error {
-	if len(cond.Value) > 0 {
+type RangeParam struct {
+	Operator  string
+	Condition *RangeCondition
+	IsBool    bool
+}
+
+func (cond *RangeParam) Set(value string) error {
+	if len(cond.Condition.Operator) > 0 {
 		return errors.New("range-condition value already set")
 	}
 
-	cond.Value = value
+	cond.Condition.Operator = cond.Operator
+	cond.Condition.Value = value
 	return nil
 }
 
-func (cond *RangeCondition) String() string {
-	if len(cond.Value) > 0 {
-		return cond.Value
+func (cond *RangeParam) String() string {
+	if len(cond.Condition.Value) > 0 {
+		return cond.Condition.Value
 	} else {
 		return "{value}"
 	}
 }
 
-func (cond *RangeCondition) SetOperator(f *flag.Flag) {
-	if f.Name == "range" {
-		cond.Operator = "EQ"
-	} else if strings.HasPrefix(f.Name, "range-") {
-		cond.Operator = strings.ToUpper(f.Name[6:])
-	}
+func (cond *RangeParam) IsBoolFlag() bool {
+	return cond.IsBool
 }
 
 func main() {
@@ -433,21 +436,24 @@ func main() {
 
 			var rangeCond RangeCondition
 
-			flags.Var(&rangeCond, "range", "range-key value")
-			flags.Var(&rangeCond, "range-eq", "range-key equal value")
-			flags.Var(&rangeCond, "range-ne", "range-key not-equal value")
-			flags.Var(&rangeCond, "range-le", "range-key less-or-equal value")
-			flags.Var(&rangeCond, "range-lt", "range-key less-than value")
-			flags.Var(&rangeCond, "range-ge", "range-key less-or-equal value")
-			flags.Var(&rangeCond, "range-gt", "range-key less-than value")
+			flags.Var(&RangeParam{"EQ", &rangeCond, false}, "range", "range-key value")
+			flags.Var(&RangeParam{"EQ", &rangeCond, false}, "range-eq", "range-key equal value")
+			flags.Var(&RangeParam{"NE", &rangeCond, false}, "range-ne", "range-key not-equal value")
+			flags.Var(&RangeParam{"LE", &rangeCond, false}, "range-le", "range-key less-or-equal value")
+			flags.Var(&RangeParam{"LT", &rangeCond, false}, "range-lt", "range-key less-than value")
+			flags.Var(&RangeParam{"GE", &rangeCond, false}, "range-ge", "range-key less-or-equal value")
+			flags.Var(&RangeParam{"GT", &rangeCond, false}, "range-gt", "range-key less-than value")
+			flags.Var(&RangeParam{"CONTAINS", &rangeCond, false}, "range-contains", "range-key contains value")
+			flags.Var(&RangeParam{"NOT_CONTAINS", &rangeCond, false}, "range-not-contains", "range-key not-contains value")
+			flags.Var(&RangeParam{"BEGINS_WITH", &rangeCond, false}, "range-begins-with", "range-key begins-with value")
+			flags.Var(&RangeParam{"NULL", &rangeCond, true}, "range-null", "range-key is null")
+			flags.Var(&RangeParam{"NOT_NULL", &rangeCond, true}, "range-not-null", "range-key is-not null")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
 			args := flags.Args()
-
-			flags.Visit(rangeCond.SetOperator)
 
 			table := selectedTable
 
@@ -480,7 +486,12 @@ func main() {
 			query := table.Query(*hashKey)
 
 			if len(rangeCond.Operator) > 0 {
-				query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
+				switch rangeCond.Operator {
+				case "NULL", "NOT_NULL":
+					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator))
+				default:
+					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
+				}
 			}
 
 			if *limit > 0 {
