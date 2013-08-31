@@ -115,3 +115,7 @@ func (attr *AttributeDefinition) IN(values []interface{}) AttrCondition {
 func (attr *AttributeDefinition) BETWEEN(value1, value2 interface{}) AttrCondition {
 	return AttrCondition{attr.AttributeName: BETWEEN(EncodeAttributeValue(*attr, value1), EncodeAttributeValue(*attr, value2))}
 }
+
+func (attr *AttributeDefinition) Condition(op string, values ...interface{}) AttrCondition {
+	return AttrCondition{attr.AttributeName: Condition{op, EncodeAttributeValues(*attr, values...)}}
+}
