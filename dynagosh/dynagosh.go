@@ -134,7 +134,11 @@ func (cond *RangeCondition) Set(value string) error {
 }
 
 func (cond *RangeCondition) String() string {
-	return fmt.Sprintf("%s: %v", cond.Operator, cond.Value)
+	if len(cond.Value) > 0 {
+		return cond.Value
+	} else {
+		return "{value}"
+	}
 }
 
 func (cond *RangeCondition) SetOperator(f *flag.Flag) {
@@ -437,7 +441,10 @@ func main() {
 			flags.Var(&rangeCond, "range-ge", "range-key less-or-equal value")
 			flags.Var(&rangeCond, "range-gt", "range-key less-than value")
 
-			args.ParseFlags(flags, line)
+			if err := args.ParseFlags(flags, line); err != nil {
+				return
+			}
+
 			args := flags.Args()
 
 			flags.Visit(rangeCond.SetOperator)
