@@ -43,6 +43,6 @@ func (db *DBClient) WithRegion(region string) *DBClient {
 }
 
 func (db *DBClient) WithCredentials(accessKey, secretKey string) *DBClient {
-	db.Client = &aws4.Client{Keys: &aws4.Keys{accessKey, secretKey}}
+	db.Client = &aws4.Client{Keys: &aws4.Keys{AccessKey: accessKey, SecretKey: secretKey}}
 	return db
 }
