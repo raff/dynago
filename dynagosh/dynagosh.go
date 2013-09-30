@@ -4,7 +4,7 @@
 package main
 
 import (
-	"../../dynago"
+	"github.com/raff/dynago"
 
 	"code.google.com/p/gcfg"
 	"github.com/gobs/args"
@@ -421,7 +421,7 @@ func main() {
 
 	commander.Add(cmd.Command{"query",
 		`
-		query [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] --hash hash-key-value [--range range-key-value]
+		query [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] --hash hash-key-value [--range[-rangeop] range-key-value]
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("query")
