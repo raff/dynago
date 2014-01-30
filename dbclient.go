@@ -15,6 +15,8 @@ const (
 	REGION_US_WEST_2 = "https://dynamodb.us-west-2.amazonaws.com/"
 
 	region_pattern = "https://dynamodb.{}.amazonaws.com/"
+
+        RETRY_COUNT = 10
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -30,6 +32,10 @@ type DBClient struct {
 func NewDBClient() (db *DBClient) {
 	db = &DBClient{}
 	return
+}
+
+func (db *DBClient) Query(action string, v interface{}) dydb.Decoder {
+    return db.DB.RetryQuery(action, v, RETRY_COUNT)
 }
 
 func (db *DBClient) WithRegion(region string) *DBClient {
