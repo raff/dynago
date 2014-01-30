@@ -537,8 +537,9 @@ func main() {
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
 
-			args.ParseFlags(flags, line)
-			//args := flags.Args()
+			if err := args.ParseFlags(flags, line); err != nil {
+                                return
+			}
 
 			table := selectedTable
 
@@ -561,16 +562,24 @@ func main() {
 				scan = scan.WithLimit(*limit)
 			}
 
+			if *consumed {
+				scan = scan.WithConsumed(true)
+			}
+
 			if *count {
-				scan = scan.WithSelect(dynago.SELECT_COUNT)
+				if totalCount, scanCount, consumed, err := scan.Count(db); err != nil {
+				    fmt.Println(err)
+                                } else {
+                                    fmt.Println("count:", totalCount)
+                                    fmt.Println("scan count:", scanCount)
+                                    fmt.Println("consumed:", consumed)
+                                }
+
+                                return
 			}
 
 			if *next {
 				scan = scan.WithStartKey(nextKey)
-			}
-
-			if *consumed {
-				scan = scan.WithConsumed(true)
 			}
 
 			if items, lastKey, consumed, err := scan.Exec(db); err != nil {

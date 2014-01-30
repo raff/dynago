@@ -1,5 +1,7 @@
 package dynago
 
+//import "log"
+
 const (
 	SELECT_ALL        = "ALL_ATTRIBUTES"
 	SELECT_PROJECTED  = "ALL_PROJECTED_ATTRIBUTES"
@@ -226,4 +228,34 @@ func (scanReq *ScanRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue
 	}
 
 	return scanRes.Items, scanRes.LastEvaluatedKey, scanRes.ConsumedCapacity.CapacityUnits, nil
+}
+
+func (scanReq *ScanRequest) Count(db *DBClient) (count int, scount int, consumed float32, err error) {
+	var scanRes QueryResult
+
+        req := *scanReq
+        req.Select = SELECT_COUNT
+
+        for {
+            scanRes.LastEvaluatedKey = nil
+
+            if err = db.Query("Scan", &req).Decode(&scanRes); err != nil {
+                break
+            }
+
+            count += scanRes.Count
+            scount += scanRes.ScannedCount
+            consumed += scanRes.ConsumedCapacity.CapacityUnits
+
+            if scanRes.LastEvaluatedKey == nil {
+                break
+            }
+
+            req.ExclusiveStartKey = make(AttributeNameValue)
+            for k, v := range scanRes.LastEvaluatedKey {
+	        req.ExclusiveStartKey[k] = v
+            }
+        }
+
+        return
 }
