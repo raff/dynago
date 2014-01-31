@@ -200,8 +200,8 @@ func (scanReq *ScanRequest) WithFilter(attrName string, condition Condition) *Sc
 }
 
 func (scanReq *ScanRequest) WithFilters(filters AttrCondition) *ScanRequest {
-    scanReq.ScanFilter = filters
-    return scanReq
+	scanReq.ScanFilter = filters
+	return scanReq
 }
 
 func (scanReq *ScanRequest) WithLimit(limit int) *ScanRequest {
@@ -238,29 +238,29 @@ func (scanReq *ScanRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue
 func (scanReq *ScanRequest) Count(db *DBClient) (count int, scount int, consumed float32, err error) {
 	var scanRes QueryResult
 
-        req := *scanReq
-        req.Select = SELECT_COUNT
+	req := *scanReq
+	req.Select = SELECT_COUNT
 
-        for {
-            scanRes.LastEvaluatedKey = nil
+	for {
+		scanRes.LastEvaluatedKey = nil
 
-            if err = db.Query("Scan", &req).Decode(&scanRes); err != nil {
-                break
-            }
+		if err = db.Query("Scan", &req).Decode(&scanRes); err != nil {
+			break
+		}
 
-            count += scanRes.Count
-            scount += scanRes.ScannedCount
-            consumed += scanRes.ConsumedCapacity.CapacityUnits
+		count += scanRes.Count
+		scount += scanRes.ScannedCount
+		consumed += scanRes.ConsumedCapacity.CapacityUnits
 
-            if scanRes.LastEvaluatedKey == nil {
-                break
-            }
+		if scanRes.LastEvaluatedKey == nil {
+			break
+		}
 
-            req.ExclusiveStartKey = make(AttributeNameValue)
-            for k, v := range scanRes.LastEvaluatedKey {
-	        req.ExclusiveStartKey[k] = v
-            }
-        }
+		req.ExclusiveStartKey = make(AttributeNameValue)
+		for k, v := range scanRes.LastEvaluatedKey {
+			req.ExclusiveStartKey[k] = v
+		}
+	}
 
-        return
+	return
 }

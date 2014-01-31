@@ -13,11 +13,11 @@ var (
 )
 
 func MakeCondition(op, typ string, values ...string) Condition {
-    avalues := make([]AttributeValue, len(values))
-    for i, v := range values {
-            avalues[i] = AttributeValue{typ: v}
-    }
-    return Condition{op, avalues}
+	avalues := make([]AttributeValue, len(values))
+	for i, v := range values {
+		avalues[i] = AttributeValue{typ: v}
+	}
+	return Condition{op, avalues}
 }
 
 func EQ(v AttributeValue) Condition {

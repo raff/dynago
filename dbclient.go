@@ -16,7 +16,7 @@ const (
 
 	region_pattern = "https://dynamodb.{}.amazonaws.com/"
 
-        RETRY_COUNT = 10
+	RETRY_COUNT = 10
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ func NewDBClient() (db *DBClient) {
 }
 
 func (db *DBClient) Query(action string, v interface{}) dydb.Decoder {
-    return db.DB.RetryQuery(action, v, RETRY_COUNT)
+	return db.DB.RetryQuery(action, v, RETRY_COUNT)
 }
 
 func (db *DBClient) WithRegion(region string) *DBClient {
