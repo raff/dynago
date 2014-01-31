@@ -199,6 +199,11 @@ func (scanReq *ScanRequest) WithFilter(attrName string, condition Condition) *Sc
 	return scanReq
 }
 
+func (scanReq *ScanRequest) WithFilters(filters AttrCondition) *ScanRequest {
+    scanReq.ScanFilter = filters
+    return scanReq
+}
+
 func (scanReq *ScanRequest) WithLimit(limit int) *ScanRequest {
 	scanReq.Limit = limit
 	return scanReq
