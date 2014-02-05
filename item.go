@@ -1,6 +1,10 @@
 package dynago
 
-//import "log"
+import (
+	"encoding/json"
+	//"log"
+	"strconv"
+)
 
 const (
 	SELECT_ALL        = "ALL_ATTRIBUTES"
@@ -23,7 +27,29 @@ type KeyValue struct {
 	Value interface{}
 }
 
-//type ItemValues map[string]AttributeValue
+// Items are maps of name/value pairs
+type Item map[string]interface{}
+
+func (pi *Item) UnmarshalJSON(data []byte) error {
+	var dbitem DBItem
+
+	if err := json.Unmarshal(data, &dbitem); err != nil {
+		return err
+	}
+
+	item := make(Item)
+
+	for k, v := range dbitem {
+		item[k] = DecodeValue(v)
+	}
+
+	*pi = item
+	return nil
+}
+
+func AsNumber(v int) json.Number {
+	return json.Number(strconv.Itoa(v))
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -77,7 +103,7 @@ type QueryRequest struct {
 	ExclusiveStartKey      AttributeNameValue   `json:",omitempty"`
 	KeyConditions          map[string]Condition `json:",omitempty"`
 	IndexName              string               `json:",omitempty"`
-	Limit                  int                  `json:",omitempty"`
+	Limit                  json.Number          `json:",omitempty"`
 	Select                 string               `json:",omitempty"`
 	ReturnConsumedCapacity string               `json:",omitempty"`
 
@@ -85,7 +111,7 @@ type QueryRequest struct {
 }
 
 type QueryResult struct {
-	Items            []DBItem
+	Items            []Item
 	ConsumedCapacity ConsumedCapacityDescription
 	LastEvaluatedKey AttributeNameValue
 	Count            int
@@ -129,7 +155,7 @@ func (queryReq *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryReques
 }
 
 func (queryReq *QueryRequest) WithLimit(limit int) *QueryRequest {
-	queryReq.Limit = limit
+	queryReq.Limit = AsNumber(limit)
 	return queryReq
 }
 
@@ -143,7 +169,7 @@ func (queryReq *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
 	return queryReq
 }
 
-func (queryReq *QueryRequest) Exec(db *DBClient) ([]DBItem, AttributeNameValue, float32, error) {
+func (queryReq *QueryRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
 	if db == nil && queryReq.table != nil {
 		db = queryReq.table.DB
 	}
@@ -167,11 +193,11 @@ type ScanRequest struct {
 	AttributesToGet        []string
 	ExclusiveStartKey      AttributeNameValue
 	ScanFilter             map[string]Condition
-	Limit                  int    `json:",omitempty"`
-	Segment                int    `json:",omitempty"`
-	TotalSegments          int    `json:",omitempty"`
-	Select                 string `json:",omitempty"`
-	ReturnConsumedCapacity string `json:",omitempty"`
+	Limit                  json.Number `json:",omitempty"`
+	Segment                json.Number `json:",omitempty"`
+	TotalSegments          json.Number `json:",omitempty"`
+	Select                 string      `json:",omitempty"`
+	ReturnConsumedCapacity string      `json:",omitempty"`
 
 	table *TableInstance
 }
@@ -209,13 +235,13 @@ func (scanReq *ScanRequest) WithFilters(filters AttrCondition) *ScanRequest {
 }
 
 func (scanReq *ScanRequest) WithLimit(limit int) *ScanRequest {
-	scanReq.Limit = limit
+	scanReq.Limit = AsNumber(limit)
 	return scanReq
 }
 
 func (scanReq *ScanRequest) WithSegment(segment, totalSegments int) *ScanRequest {
-	scanReq.Segment = segment
-	scanReq.TotalSegments = totalSegments
+	scanReq.Segment = AsNumber(segment)
+	scanReq.TotalSegments = AsNumber(totalSegments)
 	return scanReq
 }
 
@@ -229,7 +255,7 @@ func (scanReq *ScanRequest) WithConsumed(consumed bool) *ScanRequest {
 	return scanReq
 }
 
-func (scanReq *ScanRequest) Exec(db *DBClient) ([]DBItem, AttributeNameValue, float32, error) {
+func (scanReq *ScanRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
 	var scanRes QueryResult
 
 	if err := db.Query("Scan", scanReq).Decode(&scanRes); err != nil {
