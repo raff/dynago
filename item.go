@@ -23,7 +23,7 @@ type KeyValue struct {
 	Value interface{}
 }
 
-type ItemValues map[string]AttributeValue
+//type ItemValues map[string]AttributeValue
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -41,10 +41,10 @@ type GetItemRequest struct {
 type GetItemResult struct {
 	ConsumedCapacity ConsumedCapacityDescription
 
-	Item ItemValues
+	Item DBItem
 }
 
-func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) (*ItemValues, float32, error) {
+func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) (map[string]interface{}, float32, error) {
 
 	getReq := GetItemRequest{TableName: tableName, AttributesToGet: attributes, ConsistentRead: consistent, ReturnConsumedCapacity: RETURN_CONSUMED[consumed]}
 	getReq.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
@@ -58,7 +58,11 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 		return nil, 0.0, err
 	}
 
-	return &getRes.Item, getRes.ConsumedCapacity.CapacityUnits, nil
+	if len(getRes.Item) == 0 {
+		return nil, getRes.ConsumedCapacity.CapacityUnits, nil
+	}
+
+	return DecodeItem(getRes.Item), getRes.ConsumedCapacity.CapacityUnits, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -81,7 +85,7 @@ type QueryRequest struct {
 }
 
 type QueryResult struct {
-	Items            []ItemValues
+	Items            []DBItem
 	ConsumedCapacity ConsumedCapacityDescription
 	LastEvaluatedKey AttributeNameValue
 	Count            int
@@ -139,7 +143,7 @@ func (queryReq *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
 	return queryReq
 }
 
-func (queryReq *QueryRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue, float32, error) {
+func (queryReq *QueryRequest) Exec(db *DBClient) ([]DBItem, AttributeNameValue, float32, error) {
 	if db == nil && queryReq.table != nil {
 		db = queryReq.table.DB
 	}
@@ -225,7 +229,7 @@ func (scanReq *ScanRequest) WithConsumed(consumed bool) *ScanRequest {
 	return scanReq
 }
 
-func (scanReq *ScanRequest) Exec(db *DBClient) ([]ItemValues, AttributeNameValue, float32, error) {
+func (scanReq *ScanRequest) Exec(db *DBClient) ([]DBItem, AttributeNameValue, float32, error) {
 	var scanRes QueryResult
 
 	if err := db.Query("Scan", scanReq).Decode(&scanRes); err != nil {

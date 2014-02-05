@@ -272,11 +272,11 @@ func (table *TableDescription) getAttribute(name string) *AttributeDefinition {
 	return nil
 }
 
-func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, attributes []string, consistent bool, consumed bool) (*ItemValues, float32, error) {
+func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, attributes []string, consistent bool, consumed bool) (map[string]interface{}, float32, error) {
 	hkey := &KeyValue{*table.Keys[HASH_KEY_TYPE], hashKey}
 
 	var rkey *KeyValue
-	if rangeKey != nil && table.Keys[RANGE_KEY_TYPE] != nil {
+	if table.Keys[RANGE_KEY_TYPE] != nil {
 		rkey = &KeyValue{*table.Keys[RANGE_KEY_TYPE], rangeKey}
 	}
 
