@@ -604,8 +604,11 @@ func main() {
 				return
 			}
 
-			scan := dynago.ScanTable(table).
-				WithSegment(*segment, *total)
+			scan := dynago.ScanTable(table)
+
+			if *segment != 0 || *total != 0 {
+				scan = scan.WithSegment(*segment, *total)
+			}
 
 			if len(filters) > 0 {
 				scan = scan.WithFilters(filters)
