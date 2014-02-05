@@ -432,7 +432,7 @@ func main() {
 			}
 
 			hashKey := args[1]
-			var rangeKey string
+			var rangeKey interface{}
 
 			if len(args) > 2 {
 				rangeKey = args[2]
