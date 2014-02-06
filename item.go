@@ -61,7 +61,7 @@ type GetItemRequest struct {
 type GetItemResult struct {
 	ConsumedCapacity ConsumedCapacityDescription
 
-	Item DBItem
+	Item Item
 }
 
 func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) (map[string]interface{}, float32, error) {
@@ -82,7 +82,7 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 		return nil, getRes.ConsumedCapacity.CapacityUnits, nil
 	}
 
-	return DecodeItem(getRes.Item), getRes.ConsumedCapacity.CapacityUnits, nil
+	return getRes.Item, getRes.ConsumedCapacity.CapacityUnits, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
