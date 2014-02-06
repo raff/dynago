@@ -2,8 +2,6 @@ package dynago
 
 import (
 	"encoding/json"
-	//"log"
-	"strconv"
 )
 
 const (
@@ -45,10 +43,6 @@ func (pi *Item) UnmarshalJSON(data []byte) error {
 
 	*pi = item
 	return nil
-}
-
-func AsNumber(v int) json.Number {
-	return json.Number(strconv.Itoa(v))
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -103,7 +97,7 @@ type QueryRequest struct {
 	ExclusiveStartKey      AttributeNameValue   `json:",omitempty"`
 	KeyConditions          map[string]Condition `json:",omitempty"`
 	IndexName              string               `json:",omitempty"`
-	Limit                  json.Number          `json:",omitempty"`
+	Limit                  *int                 `json:",omitempty"`
 	Select                 string               `json:",omitempty"`
 	ReturnConsumedCapacity string               `json:",omitempty"`
 
@@ -155,7 +149,7 @@ func (queryReq *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryReques
 }
 
 func (queryReq *QueryRequest) WithLimit(limit int) *QueryRequest {
-	queryReq.Limit = AsNumber(limit)
+	queryReq.Limit = &limit
 	return queryReq
 }
 
@@ -193,11 +187,11 @@ type ScanRequest struct {
 	AttributesToGet        []string
 	ExclusiveStartKey      AttributeNameValue
 	ScanFilter             map[string]Condition
-	Limit                  json.Number `json:",omitempty"`
-	Segment                json.Number `json:",omitempty"`
-	TotalSegments          json.Number `json:",omitempty"`
-	Select                 string      `json:",omitempty"`
-	ReturnConsumedCapacity string      `json:",omitempty"`
+	Limit                  *int   `json:",omitempty"`
+	Segment                *int   `json:",omitempty"`
+	TotalSegments          *int   `json:",omitempty"`
+	Select                 string `json:",omitempty"`
+	ReturnConsumedCapacity string `json:",omitempty"`
 
 	table *TableInstance
 }
@@ -235,13 +229,13 @@ func (scanReq *ScanRequest) WithFilters(filters AttrCondition) *ScanRequest {
 }
 
 func (scanReq *ScanRequest) WithLimit(limit int) *ScanRequest {
-	scanReq.Limit = AsNumber(limit)
+	scanReq.Limit = &limit
 	return scanReq
 }
 
 func (scanReq *ScanRequest) WithSegment(segment, totalSegments int) *ScanRequest {
-	scanReq.Segment = AsNumber(segment)
-	scanReq.TotalSegments = AsNumber(totalSegments)
+	scanReq.Segment = &segment
+	scanReq.TotalSegments = &totalSegments
 	return scanReq
 }
 
