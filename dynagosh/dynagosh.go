@@ -423,7 +423,7 @@ func main() {
 				return
 			}
 
-			tableName := args[0]
+			tableName, args := args[0], args[1:]
 			table, err := db.GetTable(tableName)
 
 			if err != nil {
@@ -431,21 +431,28 @@ func main() {
 				return
 			}
 
-			hashKey := args[1]
+			hashKey, args := args[0], args[1:]
 			var rangeKey interface{}
 
-			if len(args) > 2 {
-				rangeKey = args[2]
+			// XXX: here we are forced to pass a rangeKey in order to get to "attributes"
+			//      we should probably add a --rangeKey parameter or have a "splittable" single key
+			if len(args) > 0 {
+				rangeKey, args = args[0], args[1:]
 			}
 
 			var attributes []string
 
-			if len(args) > 3 {
-				attributes = args[3:]
+			if len(args) > 0 {
+				attributes = args
 			}
 
 			if item, consumed, err := table.GetItem(hashKey, rangeKey, attributes, false, true); err != nil {
 				fmt.Println(err)
+			} else if len(attributes) > 0 {
+				for _, n := range attributes {
+					fmt.Print(" ", item[n])
+				}
+				fmt.Println()
 			} else {
 				pretty.PrettyPrint(item)
 				fmt.Println("consumed:", consumed)
@@ -636,6 +643,10 @@ func main() {
 
 			if *next {
 				scan = scan.WithStartKey(nextKey)
+			}
+
+			if config.Dynago.Debug {
+				log.Printf("request: %#v\n", scan)
 			}
 
 			if items, lastKey, consumed, err := scan.Exec(db); err != nil {
