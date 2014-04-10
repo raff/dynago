@@ -25,7 +25,7 @@ type AttributeValue map[string]interface{}
 // Attributes are encoded as { "name": { "type": "value" } }
 type AttributeNameValue map[string]AttributeValue
 
-// Items are encoded as maps of "name": { "type": "value" }
+// DBItems are encoded as maps of "name": { "type": "value" }
 type DBItem map[string]AttributeValue
 
 // Encode a value according to its type

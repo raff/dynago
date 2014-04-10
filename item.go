@@ -2,6 +2,7 @@ package dynago
 
 import (
 	"encoding/json"
+	"time"
 )
 
 const (
@@ -260,6 +261,10 @@ func (scanReq *ScanRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, floa
 }
 
 func (scanReq *ScanRequest) Count(db *DBClient) (count int, scount int, consumed float32, err error) {
+	return scanReq.CountWithDelay(db, 0)
+}
+
+func (scanReq *ScanRequest) CountWithDelay(db *DBClient, delay time.Duration) (count int, scount int, consumed float32, err error) {
 	var scanRes QueryResult
 
 	req := *scanReq
@@ -283,6 +288,10 @@ func (scanReq *ScanRequest) Count(db *DBClient) (count int, scount int, consumed
 		req.ExclusiveStartKey = make(AttributeNameValue)
 		for k, v := range scanRes.LastEvaluatedKey {
 			req.ExclusiveStartKey[k] = v
+		}
+
+		if delay > 0 {
+			time.Sleep(delay)
 		}
 	}
 

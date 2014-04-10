@@ -20,6 +20,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -179,7 +180,12 @@ func (filter *ScanFilter) Set(value string) error {
 		val = parts[2]
 	}
 
-	(*filter.Filters)[attr] = dynago.MakeCondition(filter.Op, typ, val)
+	switch filter.Op {
+	case "NULL", "NOT_NULL":
+		(*filter.Filters)[attr] = dynago.MakeCondition(filter.Op, typ)
+	default:
+		(*filter.Filters)[attr] = dynago.MakeCondition(filter.Op, typ, val)
+	}
 	return nil
 }
 
@@ -578,6 +584,7 @@ func main() {
 			consumed := flags.Bool("consumed", false, "return consumed capacity")
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
+			countDelay := flags.String("count-delay", "0ms", "delay (as duration string) between scan requests when counting")
 
 			filters := make(dynago.AttrCondition)
 
@@ -630,7 +637,9 @@ func main() {
 			}
 
 			if *count {
-				if totalCount, scanCount, consumed, err := scan.Count(db); err != nil {
+				delay, _ := time.ParseDuration(*countDelay)
+
+				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, delay); err != nil {
 					fmt.Println(err)
 				} else {
 					fmt.Println("count:", totalCount)
