@@ -196,6 +196,11 @@ func (filter *ScanFilter) String() string {
 	return "name:type:value"
 }
 
+func jsonString(v interface{}) string {
+	res, _ := json.Marshal(v)
+	return string(res)
+}
+
 func main() {
 	var nextKey dynago.AttributeNameValue
 	var selectedTable *dynago.TableInstance
@@ -588,13 +593,14 @@ func main() {
 			tableName := flags.String("table", "", "table name")
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			count := flags.Bool("count", false, "only return item count")
-			next := flags.Bool("next", false, "get next page")
 			cons := flags.Bool("consumed", false, "return consumed capacity")
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
 			delay := flags.String("delay", "0ms", "delay (as duration string) between scan requests")
 			format := flags.String("format", "pretty", "output format: pretty, compact or json")
 			all := flags.Bool("all", false, "fetch all entries")
+			next := flags.Bool("next", false, "get next page")
+			start := flags.String("start", "", "start from this key")
 
 			filters := make(dynago.AttrCondition)
 
@@ -666,6 +672,12 @@ func main() {
 				*next = true
 			}
 
+			if len(*start) > 0 {
+				if err := json.Unmarshal([]byte(*start), &nextKey); err != nil {
+					fmt.Println("can't parse", *start, err)
+				}
+			}
+
 			for {
 				if *next {
 					scan = scan.WithStartKey(nextKey)
@@ -689,9 +701,8 @@ func main() {
 							p.Print(i)
 						}
 					} else if *format == "json" {
-						j := json.NewEncoder(os.Stdout)
 						for _, i := range items {
-							j.Encode(i)
+							fmt.Println(jsonString(i))
 						}
 					} else {
 						pretty.PrettyPrint(items)
@@ -709,7 +720,7 @@ func main() {
 				}
 
 				if scanDelay > 0 {
-					log.Println(nextKey, consumed)
+					log.Println(jsonString(nextKey), consumed)
 					time.Sleep(scanDelay)
 				}
 			}
