@@ -12,6 +12,7 @@ import (
 	"github.com/gobs/httpclient"
 	"github.com/gobs/pretty"
 
+	"encoding/json"
 	"errors"
 	//"flag"
 	"fmt"
@@ -45,6 +46,8 @@ type Config struct {
 		Profile string
 		// enable request debugging
 		Debug bool
+		// display prompt
+		Prompt bool
 	}
 
 	// list of named profiles
@@ -226,7 +229,12 @@ func main() {
 	}
 
 	commander := &cmd.Cmd{HistoryFile: HISTORY_FILE, Complete: CompletionFunction, EnableShell: true}
-	commander.Prompt = "dynagosh> "
+	if config.Dynago.Prompt {
+		commander.Prompt = "dynagosh> "
+	} else {
+		commander.Prompt = "\n"
+	}
+
 	commander.Init()
 
 	commander.Add(cmd.Command{"config",
@@ -572,7 +580,7 @@ func main() {
 
 	commander.Add(cmd.Command{"scan",
 		`
-		scan [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] [--segment=n --total=m]
+		scan [--table=tablename] [--limit=pagesize] [--next] [--count] [--consumed] [--format=pretty|compact|json] [--segment=n --total=m]
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("scan")
@@ -581,10 +589,12 @@ func main() {
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			count := flags.Bool("count", false, "only return item count")
 			next := flags.Bool("next", false, "get next page")
-			consumed := flags.Bool("consumed", false, "return consumed capacity")
+			cons := flags.Bool("consumed", false, "return consumed capacity")
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
-			countDelay := flags.String("count-delay", "0ms", "delay (as duration string) between scan requests when counting")
+			delay := flags.String("delay", "0ms", "delay (as duration string) between scan requests")
+			format := flags.String("format", "pretty", "output format: pretty, compact or json")
+			all := flags.Bool("all", false, "fetch all entries")
 
 			filters := make(dynago.AttrCondition)
 
@@ -608,7 +618,7 @@ func main() {
 
 			if len(*tableName) > 1 {
 				if t, err := db.GetTable(*tableName); err != nil {
-					fmt.Println(err)
+					log.Println(err)
 					return
 				} else {
 					table = t
@@ -632,39 +642,76 @@ func main() {
 				scan = scan.WithLimit(*limit)
 			}
 
-			if *consumed {
+			if *cons {
 				scan = scan.WithConsumed(true)
 			}
 
-			if *count {
-				delay, _ := time.ParseDuration(*countDelay)
+			scanDelay, _ := time.ParseDuration(*delay)
 
-				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, delay); err != nil {
-					fmt.Println(err)
+			if *count {
+				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, scanDelay); err != nil {
+					log.Println(err)
 				} else {
 					fmt.Println("count:", totalCount)
 					fmt.Println("scan count:", scanCount)
-					fmt.Println("consumed:", consumed)
+					if *cons {
+						fmt.Println("consumed:", consumed)
+					}
 				}
 
 				return
 			}
 
-			if *next {
-				scan = scan.WithStartKey(nextKey)
+			if *all {
+				*next = true
 			}
 
-			if config.Dynago.Debug {
-				log.Printf("request: %#v\n", scan)
-			}
+			for {
+				if *next {
+					scan = scan.WithStartKey(nextKey)
+				}
 
-			if items, lastKey, consumed, err := scan.Exec(db); err != nil {
-				fmt.Println(err)
-			} else {
-				pretty.PrettyPrint(items)
-				fmt.Println("consumed:", consumed)
+				if config.Dynago.Debug {
+					log.Printf("request: %#v\n", scan)
+				}
 
-				nextKey = lastKey
+				items, lastKey, consumed, err := scan.Exec(db)
+				if err != nil {
+					log.Println(err)
+
+					if !strings.Contains(err.Error(), "ConnectEx") {
+						break
+					}
+				} else {
+					if *format == "compact" {
+						p := &pretty.Pretty{Indent: "", Out: os.Stdout, NilString: "null"}
+						for _, i := range items {
+							p.Print(i)
+						}
+					} else if *format == "json" {
+						j := json.NewEncoder(os.Stdout)
+						for _, i := range items {
+							j.Encode(i)
+						}
+					} else {
+						pretty.PrettyPrint(items)
+					}
+
+					//if *cons {
+					//	fmt.Println("consumed:", consumed)
+					//}
+
+					nextKey = lastKey
+				}
+
+				if (!*all) || len(nextKey) == 0 {
+					break
+				}
+
+				if scanDelay > 0 {
+					log.Println(nextKey, consumed)
+					time.Sleep(scanDelay)
+				}
 			}
 
 			return
