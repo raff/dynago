@@ -76,7 +76,7 @@ func DecodeValue(attrValue AttributeValue) interface{} {
 			return v.(string)
 
 		case STRING_SET_ATTRIBUTE:
-			return v.([]string)
+			return v.([]interface{})
 
 		case NUMBER_ATTRIBUTE:
 			s := v.(string)
