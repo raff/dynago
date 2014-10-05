@@ -17,6 +17,7 @@ import (
 	//"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path"
 	"strconv"
@@ -689,9 +690,9 @@ func main() {
 
 				items, lastKey, consumed, err := scan.Exec(db)
 				if err != nil {
-					log.Println(err)
+					log.Printf("%T %#v", err, err)
 
-					if !strings.Contains(err.Error(), "ConnectEx") {
+					if _, ok := err.(*net.OpError); !ok {
 						break
 					}
 				} else {
@@ -713,10 +714,10 @@ func main() {
 					//}
 
 					nextKey = lastKey
-				}
 
-				if (!*all) || len(nextKey) == 0 {
-					break
+					if (!*all) || len(nextKey) == 0 {
+						break
+					}
 				}
 
 				if scanDelay > 0 {
