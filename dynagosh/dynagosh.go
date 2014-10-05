@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -200,6 +201,18 @@ func (filter *ScanFilter) String() string {
 func jsonString(v interface{}) string {
 	res, _ := json.Marshal(v)
 	return string(res)
+}
+
+func networkError(err error) bool {
+	if _, ok := err.(*net.OpError); ok {
+		return true
+	}
+
+	if _, ok := err.(*url.Error); ok {
+		return true
+	}
+
+	return false
 }
 
 func main() {
@@ -674,8 +687,11 @@ func main() {
 			}
 
 			if len(*start) > 0 {
+				log.Println("start from", *start)
+
 				if err := json.Unmarshal([]byte(*start), &nextKey); err != nil {
 					fmt.Println("can't parse", *start, err)
+					return
 				}
 			}
 
@@ -692,7 +708,7 @@ func main() {
 				if err != nil {
 					log.Printf("%T %#v", err, err)
 
-					if _, ok := err.(*net.OpError); !ok {
+					if !networkError(err) {
 						break
 					}
 				} else {
