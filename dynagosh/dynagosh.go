@@ -14,7 +14,7 @@ import (
 
 	"encoding/json"
 	"errors"
-	//"flag"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -46,10 +46,6 @@ type Config struct {
 	Dynago struct {
 		// define default profile
 		Profile string
-		// enable request debugging
-		Debug bool
-		// display prompt
-		Prompt bool
 	}
 
 	// list of named profiles
@@ -64,10 +60,8 @@ type Config struct {
 // No configuration file is NOT an error.
 // A malformed configuration file is a FATAL error.
 
-func ReadConfig(configFile string, config *Config) *Config {
-	if config == nil {
-		config = &Config{}
-	}
+func ReadConfig(configFile string, env string) *Config {
+	config := &Config{}
 
 	// configFile in current directory or full path
 	if _, err := os.Stat(configFile); err != nil {
@@ -85,6 +79,10 @@ func ReadConfig(configFile string, config *Config) *Config {
 	err := gcfg.ReadFileInto(config, configFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if len(env) > 0 {
+		config.Dynago.Profile = env
 	}
 
 	return config
@@ -160,7 +158,7 @@ func (cond *RangeParam) IsBoolFlag() bool {
 
 type ScanFilter struct {
 	Op      string
-	Filters *dynago.AttrCondition
+	Filters dynago.AttrCondition
 }
 
 func (filter *ScanFilter) Set(value string) error {
@@ -178,18 +176,21 @@ func (filter *ScanFilter) Set(value string) error {
 	typ := "S"
 	val := ""
 
-	if len(parts) > 1 {
+	switch len(parts) {
+	case 2:
+		val = parts[1]
+	case 3:
 		typ = parts[1]
-	}
-	if len(parts) > 2 {
 		val = parts[2]
 	}
 
+	log.Println("add filter", filter.Op, attr, typ, val)
+
 	switch filter.Op {
 	case "NULL", "NOT_NULL":
-		(*filter.Filters)[attr] = dynago.MakeCondition(filter.Op, typ)
+		filter.Filters[attr] = dynago.MakeCondition(filter.Op, typ)
 	default:
-		(*filter.Filters)[attr] = dynago.MakeCondition(filter.Op, typ, val)
+		filter.Filters[attr] = dynago.MakeCondition(filter.Op, typ, val)
 	}
 	return nil
 }
@@ -216,24 +217,23 @@ func networkError(err error) bool {
 }
 
 func main() {
+	env := flag.String("env", "", "select environment/profile")
+	debug := flag.Bool("debug", false, "enable/disable debug mode")
+	prompt := flag.Bool("prompt", true, "enable/disable prompt")
+
+	flag.Parse()
+
 	var nextKey dynago.AttributeNameValue
 	var selectedTable *dynago.TableInstance
 
-	config := ReadConfig(CONFIG_FILE, nil)
+	config := ReadConfig(CONFIG_FILE, *env)
 	selected := config.Dynago.Profile
-
-	if len(os.Args) > 1 {
-		// there is at least one parameter:
-		// override the selected profile
-		selected = os.Args[1]
-	}
-
 	profile := config.Profile[selected]
 	if profile == nil {
 		log.Fatal("no profile for ", selected)
 	}
 
-	if config.Dynago.Debug {
+	if *debug {
 		httpclient.StartLogging(true, true)
 	}
 
@@ -248,7 +248,7 @@ func main() {
 	}
 
 	commander := &cmd.Cmd{HistoryFile: HISTORY_FILE, Complete: CompletionFunction, EnableShell: true}
-	if config.Dynago.Prompt {
+	if *prompt {
 		commander.Prompt = "dynagosh> "
 	} else {
 		commander.Prompt = "\n"
@@ -317,7 +317,9 @@ func main() {
 				fmt.Println(err)
 			} else {
 				selectedTable = table
-				commander.Prompt = "dynagosh: " + tableName + "> "
+				if *prompt {
+					commander.Prompt = "dynagosh: " + tableName + "> "
+				}
 			}
 
 			return
@@ -618,17 +620,17 @@ func main() {
 
 			filters := make(dynago.AttrCondition)
 
-			flags.Var(&ScanFilter{"EQ", &filters}, "eq", "attr equal value")
-			flags.Var(&ScanFilter{"NE", &filters}, "ne", "attr not-equal value")
-			flags.Var(&ScanFilter{"LE", &filters}, "le", "attr less-or-equal value")
-			flags.Var(&ScanFilter{"LT", &filters}, "lt", "attr less-than value")
-			flags.Var(&ScanFilter{"GE", &filters}, "ge", "attr less-or-equal value")
-			flags.Var(&ScanFilter{"GT", &filters}, "gt", "attr less-than value")
-			flags.Var(&ScanFilter{"CONTAINS", &filters}, "contains", "attr contains value")
-			flags.Var(&ScanFilter{"NOT_CONTAINS", &filters}, "not-contains", "attr not-contains value")
-			flags.Var(&ScanFilter{"BEGINS_WITH", &filters}, "begins-with", "attr begins-with value")
-			flags.Var(&ScanFilter{"NULL", &filters}, "null", "attr is null")
-			flags.Var(&ScanFilter{"NOT_NULL", &filters}, "not-null", "attr is-not null")
+			flags.Var(&ScanFilter{"EQ", filters}, "eq", "attr equal value")
+			flags.Var(&ScanFilter{"NE", filters}, "ne", "attr not-equal value")
+			flags.Var(&ScanFilter{"LE", filters}, "le", "attr less-or-equal value")
+			flags.Var(&ScanFilter{"LT", filters}, "lt", "attr less-than value")
+			flags.Var(&ScanFilter{"GE", filters}, "ge", "attr less-or-equal value")
+			flags.Var(&ScanFilter{"GT", filters}, "gt", "attr less-than value")
+			flags.Var(&ScanFilter{"CONTAINS", filters}, "contains", "attr contains value")
+			flags.Var(&ScanFilter{"NOT_CONTAINS", filters}, "not-contains", "attr not-contains value")
+			flags.Var(&ScanFilter{"BEGINS_WITH", filters}, "begins-with", "attr begins-with value")
+			flags.Var(&ScanFilter{"NULL", filters}, "null", "attr is null")
+			flags.Var(&ScanFilter{"NOT_NULL", filters}, "not-null", "attr is-not null")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -700,7 +702,7 @@ func main() {
 					scan = scan.WithStartKey(nextKey)
 				}
 
-				if config.Dynago.Debug {
+				if *debug {
 					log.Printf("request: %#v\n", scan)
 				}
 
@@ -725,9 +727,10 @@ func main() {
 						pretty.PrettyPrint(items)
 					}
 
-					//if *cons {
-					//	fmt.Println("consumed:", consumed)
-					//}
+					if *cons {
+						log.Println("count:", len(items))
+						log.Println("consumed:", consumed)
+					}
 
 					nextKey = lastKey
 
