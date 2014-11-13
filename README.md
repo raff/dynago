@@ -1,7 +1,8 @@
 dynago
 ======
 
-DynamoDB client for Go
+DynamoDB client for Go,
+*now with [streams](http://dynamodb-preview.s3-website-us-west-2.amazonaws.com/docs/streams-dg/About.html) support*
 
 ## Installation
     $ go get github.com/raff/dynago
@@ -37,7 +38,8 @@ Each of these sections should have the correct accessKey and secretKey to access
 ### Usage with DynamoDB Local
 
 In order to test against DynamoDB local (the local "test" version of DynamoDB):
-* Download/install and run DynamoDB Local
+* Download/install and run DynamoDB Local:
+  http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
 * Add an entry in /etc/hosts for a URL that looks like a DynamoDB endpoint:
 ```
     127.0.0.1 dynamodb.local.amazonaws.com
