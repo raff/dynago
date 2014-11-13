@@ -909,21 +909,20 @@ func main() {
 			flags := args.NewFlags("streamRecords")
 
 			limit := flags.Int("limit", 0, "maximum number of items per page")
-			next := flags.Bool("next", false, "fetch next batch")
+			follow := flags.Bool("follow", false, "follow iterator")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
 			args := flags.Args()
+			shardIterator := nextIterator
 
-			shardIterator := ""
-
-			if *next {
-				shardIterator = nextIterator
-			} else if len(args) == 1 {
+			switch {
+			case len(args) == 1:
 				shardIterator = args[0]
-			} else {
+
+			case len(args) > 1:
 				streamId := args[0]
 				shardId := args[1]
 				shardIteratorType := "TRIM_HORIZON"
@@ -938,13 +937,21 @@ func main() {
 				}
 			}
 
-			records, err := db.GetRecords(shardIterator, *limit)
-			if err != nil {
-				fmt.Println(err)
-				return
-			} else {
-				pretty.PrettyPrint(records)
-				nextIterator = records.NextShardIterator
+			for {
+				records, err := db.GetRecords(shardIterator, *limit)
+				if err != nil {
+					fmt.Println(err)
+					return
+				} else {
+					pretty.PrettyPrint(records)
+					nextIterator = records.NextShardIterator
+				}
+
+				if *follow && len(nextIterator) > 0 {
+					shardIterator = nextIterator
+				} else {
+					break
+				}
 			}
 
 			return
