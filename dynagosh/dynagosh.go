@@ -477,6 +477,43 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"put",
+		`
+                put {tablename} {item}
+                `,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+			if len(args) < 2 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName := args[0]
+			table, err := db.GetTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			var item map[string]interface{}
+			if err := json.Unmarshal([]byte(args[1]), &item); err != nil {
+				fmt.Println("can't parse", args[1], err)
+				return
+			}
+
+			if item, consumed, err := table.PutItem(
+				dynago.Item(item),
+				dynago.PutReturnValues(dynago.RETURN_ALL_OLD),
+				dynago.PutReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(item)
+				fmt.Println("consumed:", consumed)
+			}
+
+			return
+		}})
+
 	commander.Add(cmd.Command{"get",
 		`
 		get {tablename} {hashKey} [rangeKey] [attributes]
@@ -491,7 +528,6 @@ func main() {
 
 			tableName, args := args[0], args[1:]
 			table, err := db.GetTable(tableName)
-
 			if err != nil {
 				fmt.Println(err)
 				return
