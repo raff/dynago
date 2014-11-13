@@ -301,6 +301,10 @@ func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, a
 	return table.DB.GetItem(table.Name, hkey, rkey, attributes, consistent, consumed)
 }
 
+func (table *TableInstance) PutItem(item Item, options ...PutOption) (*Item, float32, error) {
+	return table.DB.PutItem(table.Name, item, options...)
+}
+
 func (table *TableInstance) Query(hashKey interface{}) *QueryRequest {
 	query := QueryTable(table)
 	hkey := *table.Keys[HASH_KEY_TYPE]
