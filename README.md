@@ -39,15 +39,17 @@ Each of these sections should have the correct accessKey and secretKey to access
 In order to test against DynamoDB local (the local "test" version of DynamoDB):
 * Download/install and run DynamoDB Local
 * Add an entry in /etc/hosts for a URL that looks like a DynamoDB endpoint:
-
+```
     127.0.0.1 dynamodb.local.amazonaws.com
+```
 * Add a section in .dynagorc for the "local" environment:
-
+```
     [profile "local"]
     region = http://dynamodb.local.amazonaws.com:8000
     accessKey = AAAAAAAAAAAAAAAAAAAA
     secretKey = xxxxxxxxxxxxxxxxxxxx
-
+```
 * run dynagosh using the local environment:
-
+```
     > dynagosh --env=local
+```
