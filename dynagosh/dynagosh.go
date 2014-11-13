@@ -225,6 +225,7 @@ func main() {
 
 	var nextKey dynago.AttributeNameValue
 	var selectedTable *dynago.TableInstance
+	var nextIterator string
 
 	config := ReadConfig(CONFIG_FILE, *env)
 	selected := config.Dynago.Profile
@@ -872,6 +873,7 @@ func main() {
 			flags := args.NewFlags("streamRecords")
 
 			limit := flags.Int("limit", 0, "maximum number of items per page")
+			next := flags.Bool("next", false, "fetch next batch")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -879,10 +881,12 @@ func main() {
 
 			args := flags.Args()
 
-			streamIterator := ""
+			shardIterator := ""
 
-			if len(args) == 1 {
-				streamIterator = args[0]
+			if *next {
+				shardIterator = nextIterator
+			} else if len(args) == 1 {
+				shardIterator = args[0]
 			} else {
 				streamId := args[0]
 				shardId := args[1]
@@ -894,16 +898,17 @@ func main() {
 					fmt.Println(err)
 					return
 				} else {
-					streamIterator = iter
+					shardIterator = iter
 				}
 			}
 
-			records, err := db.GetRecords(streamIterator, *limit)
+			records, err := db.GetRecords(shardIterator, *limit)
 			if err != nil {
 				fmt.Println(err)
 				return
 			} else {
 				pretty.PrettyPrint(records)
+				nextIterator = records.NextShardIterator
 			}
 
 			return
