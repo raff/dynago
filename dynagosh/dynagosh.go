@@ -864,6 +864,51 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"streamRecords",
+		`
+                streamRecords {streamId} : display stream records
+                `,
+		func(line string) (stop bool) {
+			flags := args.NewFlags("streamRecords")
+
+			limit := flags.Int("limit", 0, "maximum number of items per page")
+
+			if err := args.ParseFlags(flags, line); err != nil {
+				return
+			}
+
+			args := flags.Args()
+
+			streamIterator := ""
+
+			if len(args) == 1 {
+				streamIterator = args[0]
+			} else {
+				streamId := args[0]
+				shardId := args[1]
+				shardIteratorType := "TRIM_HORIZON"
+				sequenceNumber := ""
+
+				iter, err := db.GetShardIterator(streamId, shardId, shardIteratorType, sequenceNumber)
+				if err != nil {
+					fmt.Println(err)
+					return
+				} else {
+					streamIterator = iter
+				}
+			}
+
+			records, err := db.GetRecords(streamIterator, *limit)
+			if err != nil {
+				fmt.Println(err)
+				return
+			} else {
+				pretty.PrettyPrint(records)
+			}
+
+			return
+		}})
+
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["lss"] = commander.Commands["listStreams"]
 	commander.Commands["drop"] = commander.Commands["delete"]
