@@ -32,5 +32,5 @@ The file should contain two or more sections:
 
 * One named "dynago" with one entry with name "profile" and value the name of the default profile to use.
 * One or more "profile" section (the name should be [profile "xxx"]) where "xxx" identify the profile name.
-Each of these sections should have the correct accessKey and secretKey to access your DynamoDB tables and optionally the region (default "use-east-1")
+Each of these sections should have the correct accessKey and secretKey to access your DynamoDB tables and optionally the region (default "us-east-1")
 
