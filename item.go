@@ -78,7 +78,7 @@ type PutItemResult struct {
 }
 
 func (db *DBClient) PutItem(tableName string, item Item, consumed bool) (float32, error) {
-    return 0.0, nil
+	return 0.0, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
