@@ -792,17 +792,17 @@ func main() {
 				return
 			}
 
-			lsRequest := dynago.ListStreams()
+			options := []dynago.ListStreamsOption{}
 
 			if len(*tableName) > 0 {
-				lsRequest = lsRequest.WithTable(*tableName)
+				options = append(options, dynago.LsTable(*tableName))
 			}
 
 			if *limit > 0 {
-				lsRequest = lsRequest.WithLimit(*limit)
+				options = append(options, dynago.LsLimit(*limit))
 			}
 
-			streams, err := lsRequest.Exec(db)
+			streams, err := db.ListStreams(options...)
 
 			if err != nil {
 				fmt.Println(err)
@@ -817,6 +817,48 @@ func main() {
 				}
 			} else {
 				fmt.Println("No available streams")
+			}
+
+			return
+		}})
+
+	commander.Add(cmd.Command{"describeStream",
+		`
+                describeStream {streamId} : display stream information
+                `,
+		func(line string) (stop bool) {
+			flags := args.NewFlags("describeStream")
+
+			start := flags.String("start", "", "start from this shard id")
+			limit := flags.Int("limit", 0, "maximum number of items per page")
+
+			if err := args.ParseFlags(flags, line); err != nil {
+				return
+			}
+
+			args := flags.Args()
+
+			if len(args) != 1 {
+				fmt.Println("one argument required")
+				return
+			}
+
+			options := []dynago.DescribeStreamOption{}
+
+			if len(*start) > 0 {
+				options = append(options, dynago.DsStart(*start))
+			}
+
+			if *limit > 0 {
+				options = append(options, dynago.DsLimit(*limit))
+			}
+
+			stream, err := db.DescribeStream(args[0], options...)
+			if err != nil {
+				fmt.Println(err)
+				return
+			} else {
+				pretty.PrettyPrint(stream)
 			}
 
 			return
