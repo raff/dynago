@@ -13,6 +13,11 @@ const (
 	TABLE_STATUS_DELETING = "DELETING"
 	TABLE_STATUS_UPDATING = "UPDATING"
 	TABLE_STATUS_ACTIVE   = "ACTIVE"
+
+	STREAM_VIEW_NEW         = "NEW_IMAGE"
+	STREAM_VIEW_OLD         = "OLD_IMAGE"
+	STREAM_VIEW_NEW_AND_OLD = "NEW_AND_OLD_IMAGES"
+	STREAM_VIEW_KEYS_ONLY   = "KEYS_ONLY"
 )
 
 // EpochTime is like Time, but unmarshal from a number (seconds since Unix epoch) instead of a formatted string
@@ -81,6 +86,13 @@ type TableDescription struct {
 	TableName      string
 	TableSizeBytes int64
 	TableStatus    string
+
+	StreamSpecification StreamSpecification
+}
+
+type StreamSpecification struct {
+	StreamEnabled  bool
+	StreamViewType string
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -146,13 +158,14 @@ type CreateTableRequest struct {
 	AttributeDefinitions  []AttributeDefinition
 	KeySchema             []KeySchemaElement
 	LocalSecondaryIndexes []LocalSecondaryIndexRequest
+	StreamSpecification   StreamSpecification
 }
 
 type CreateTableResult struct {
 	TableDescription TableDescription
 }
 
-func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, rangeKey *AttributeDefinition, rc, wc int) (*TableDescription, error) {
+func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, rangeKey *AttributeDefinition, rc, wc int, streamView string) (*TableDescription, error) {
 	createReq := CreateTableRequest{
 		TableName:             tableName,
 		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
@@ -167,6 +180,11 @@ func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, 
 
 	createReq.AttributeDefinitions = attrs
 	createReq.KeySchema = schema
+
+	if len(streamView) > 0 {
+		createReq.StreamSpecification.StreamEnabled = true
+		createReq.StreamSpecification.StreamViewType = streamView
+	}
 
 	var createRes CreateTableResult
 
