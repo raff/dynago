@@ -90,8 +90,17 @@ func ReadConfig(configFile string, env string) *Config {
 
 var (
 	// this hold the current list of table names, to be used by the CompletionFunction
-	table_list []string
+	table_list  []string
+	stream_list []string
 )
+
+func get_stream(s string) string {
+	if v, err := strconv.Atoi(s); err == nil && v < len(stream_list) {
+		return stream_list[v]
+	} else {
+		return s
+	}
+}
 
 func add_to_list(table string) {
 	table_list = append(table_list, table)
@@ -390,8 +399,8 @@ func main() {
 					streamView = dynago.STREAM_VIEW_ALL
 				case "keys":
 					streamView = dynago.STREAM_VIEW_KEYS
-                                case "no":
-                                        streamView = dynago.STREAM_VIEW_DISABLED
+				case "no":
+					streamView = dynago.STREAM_VIEW_DISABLED
 				default:
 					streamView = args[5]
 				}
@@ -438,15 +447,6 @@ func main() {
 
 			tableName := args[0]
 
-                        /*
-			table, err := db.DescribeTable(tableName)
-
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-                        */
-
 			rc := -1 // table.ProvisionedThroughput.ReadCapacityUnits
 			wc := -1 // table.ProvisionedThroughput.WriteCapacityUnits
 			streamView := ""
@@ -471,8 +471,8 @@ func main() {
 					streamView = dynago.STREAM_VIEW_ALL
 				case "keys":
 					streamView = dynago.STREAM_VIEW_KEYS
-                                case "no":
-                                        streamView = dynago.STREAM_VIEW_DISABLED
+				case "no":
+					streamView = dynago.STREAM_VIEW_DISABLED
 				default:
 					streamView = args[3]
 				}
@@ -872,9 +872,11 @@ func main() {
 			if len(streams) > 0 {
 				fmt.Println("Available streams")
 
-				for _, s := range streams {
-					fmt.Println("  ", s)
+				for i, s := range streams {
+					fmt.Println(i, s)
 				}
+
+				stream_list = streams
 			} else {
 				fmt.Println("No available streams")
 			}
@@ -897,11 +899,12 @@ func main() {
 			}
 
 			args := flags.Args()
-
 			if len(args) != 1 {
 				fmt.Println("one argument required")
 				return
 			}
+
+			streamId := get_stream(args[0])
 
 			options := []dynago.DescribeStreamOption{}
 
@@ -913,7 +916,7 @@ func main() {
 				options = append(options, dynago.DsLimit(*limit))
 			}
 
-			stream, err := db.DescribeStream(args[0], options...)
+			stream, err := db.DescribeStream(streamId, options...)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -933,21 +936,28 @@ func main() {
 
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			follow := flags.Bool("follow", false, "follow iterator")
+			iter := flags.String("iter", "", "use this shard iterator")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
 			args := flags.Args()
+
 			shardIterator := nextIterator
+			if len(*iter) > 0 {
+				shardIterator = *iter
+			}
 
-			switch {
-			case len(args) == 1:
-				shardIterator = args[0]
+			if len(args) > 0 {
+				streamId := get_stream(args[0])
+				stream, err := db.DescribeStream(streamId)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
 
-			case len(args) > 1:
-				streamId := args[0]
-				shardId := args[1]
+				shardId := stream.Shards[0].ShardId
 				shardIteratorType := "TRIM_HORIZON"
 				sequenceNumber := ""
 
@@ -980,9 +990,12 @@ func main() {
 			return
 		}})
 
+	commander.Commands["dt"] = commander.Commands["describe"]
+	commander.Commands["drop"] = commander.Commands["delete"]
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["lss"] = commander.Commands["listStreams"]
-	commander.Commands["drop"] = commander.Commands["delete"]
+	commander.Commands["ds"] = commander.Commands["describeStream"]
+	commander.Commands["lsr"] = commander.Commands["streamRecords"]
 
 	commander.CmdLoop()
 }
