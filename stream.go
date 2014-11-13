@@ -1,5 +1,7 @@
 package dynago
 
+import "log"
+
 type ListStreamsRequest struct {
 	ExclusiveStartItem string `json:",omitempty"`
 	Limit              int    `json:",omitempty"`
@@ -33,6 +35,18 @@ func (lsReq *ListStreamsRequest) WithStartItem(startItem string) *ListStreamsReq
 func (db *DBClient) ListStreams() ([]string, error) {
 	var listRes ListStreamsResult
 	if err := db.Query("ListStreams", nil).Decode(&listRes); err != nil {
+		return nil, err
+	} else {
+		return listRes.StreamIds, nil
+	}
+}
+
+func (lsReq *ListStreamsRequest) Exec(db *DBClient) ([]string, error) {
+	var listRes ListStreamsResult
+
+	log.Printf("ListStreams %#v", lsReq)
+
+	if err := db.Query("ListStreams", lsReq).Decode(&listRes); err != nil {
 		return nil, err
 	} else {
 		return listRes.StreamIds, nil
