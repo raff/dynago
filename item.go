@@ -14,6 +14,17 @@ const (
 
 var (
 	RETURN_CONSUMED = map[bool]string{true: "TOTAL", false: "NONE"}
+
+	RETURN_TOTAL_CONSUMED = "TOTAL"
+	RETURN_IDEX_CONSUMED  = "INDEXED"
+
+	RETURN_METRICS = map[bool]string{true: "SIZE", false: "NONE"}
+
+	RETURN_NONE        = "NONE"
+	RETURN_ALL_OLD     = "ALL_OLD"
+	RETURN_ALL_NEW     = "ALL_NEW"
+	RETURN_UPDATED_OLD = "UPDATED_OLD"
+	RETURN_UPDATED_NEW = "UPDATED_NEW"
 )
 
 type ConsumedCapacityDescription struct {
@@ -118,15 +129,15 @@ func PutExpressionAttributeValues(values AttributeNameValue) PutOption {
 	}
 }
 
-func PutConsumedCapacity(target string) PutOption {
+func PutReturnConsumed(target string) PutOption {
 	return func(putReq *PutItemRequest) {
 		putReq.ReturnConsumedCapacity = target
 	}
 }
 
-func PutCollectionMetrics(metrics string) PutOption {
+func PutReturnMetrics(ret bool) PutOption {
 	return func(putReq *PutItemRequest) {
-		putReq.ReturnItemCollectionMetrics = metrics
+		putReq.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
 	}
 }
 
