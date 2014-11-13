@@ -18,6 +18,8 @@ const (
 	STREAM_VIEW_OLD  = "OLD_IMAGE"
 	STREAM_VIEW_ALL  = "NEW_AND_OLD_IMAGES"
 	STREAM_VIEW_KEYS = "KEYS_ONLY"
+
+	STREAM_VIEW_DISABLED = "NO" // this is NOT a real value, it tells the API to disable streams for the table
 )
 
 // EpochTime is like Time, but unmarshal from a number (seconds since Unix epoch) instead of a formatted string
@@ -92,7 +94,7 @@ type TableDescription struct {
 
 type StreamSpecification struct {
 	StreamEnabled  bool
-	StreamViewType string
+	StreamViewType string `json:",omitempty"`
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -181,7 +183,9 @@ func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, 
 	createReq.AttributeDefinitions = attrs
 	createReq.KeySchema = schema
 
-	if len(streamView) > 0 {
+	if streamView == STREAM_VIEW_DISABLED {
+		createReq.StreamSpecification.StreamEnabled = false
+	} else if len(streamView) > 0 {
 		createReq.StreamSpecification.StreamEnabled = true
 		createReq.StreamSpecification.StreamViewType = streamView
 	}
@@ -201,23 +205,31 @@ func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, 
 //
 
 type UpdateTableRequest struct {
-	TableName             string
-	ProvisionedThroughput ProvisionedThroughputRequest
+	TableName string
+
+	// TODO: add secondary indices
+
+	ProvisionedThroughput *ProvisionedThroughputRequest `json:",omitempty"`
+	StreamSpecification   *StreamSpecification          `json:",omitempty"`
 }
 
 type UpdateTableResult struct {
 	TableDescription TableDescription
 }
 
-func (db *DBClient) UpdateTable(tableName string, rc, wc int) (*TableDescription, error) {
-	/*
-	   here we should do a DescribeTable first, and then a loop of UpdateTable requests
-	   considering that we can only double each value every time
-	*/
-
+func (db *DBClient) UpdateTable(tableName string, rc, wc int, streamView string) (*TableDescription, error) {
 	updReq := UpdateTableRequest{
-		TableName:             tableName,
-		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
+		TableName: tableName,
+	}
+
+	if rc > 0 && wc > 0 {
+		updReq.ProvisionedThroughput = &ProvisionedThroughputRequest{rc, wc}
+	}
+
+	if streamView == STREAM_VIEW_DISABLED {
+		updReq.StreamSpecification = &StreamSpecification{StreamEnabled: false}
+	} else if len(streamView) > 0 {
+		updReq.StreamSpecification = &StreamSpecification{StreamEnabled: true, StreamViewType: streamView}
 	}
 
 	var updRes UpdateTableResult

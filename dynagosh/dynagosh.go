@@ -390,6 +390,8 @@ func main() {
 					streamView = dynago.STREAM_VIEW_ALL
 				case "keys":
 					streamView = dynago.STREAM_VIEW_KEYS
+                                case "no":
+                                        streamView = dynago.STREAM_VIEW_DISABLED
 				default:
 					streamView = args[5]
 				}
@@ -424,7 +426,7 @@ func main() {
 
 	commander.Add(cmd.Command{"update",
 		`
-		update {tablename} readCapacity writeCapacity
+		update {tablename} readCapacity writeCapacity streamView
 		`,
 		func(line string) (stop bool) {
 			args := args.GetArgs(line)
@@ -435,15 +437,19 @@ func main() {
 			}
 
 			tableName := args[0]
+
+                        /*
 			table, err := db.DescribeTable(tableName)
 
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
+                        */
 
 			rc := -1 // table.ProvisionedThroughput.ReadCapacityUnits
 			wc := -1 // table.ProvisionedThroughput.WriteCapacityUnits
+			streamView := ""
 
 			if v, err := strconv.Atoi(args[1]); err == nil {
 				rc = v
@@ -455,20 +461,37 @@ func main() {
 				}
 			}
 
-			if rc <= 0 && wc <= 0 {
-				fmt.Println("no valid value for rc or wc")
+			if len(args) > 3 {
+				switch args[3] {
+				case "old":
+					streamView = dynago.STREAM_VIEW_OLD
+				case "new":
+					streamView = dynago.STREAM_VIEW_NEW
+				case "all":
+					streamView = dynago.STREAM_VIEW_ALL
+				case "keys":
+					streamView = dynago.STREAM_VIEW_KEYS
+                                case "no":
+                                        streamView = dynago.STREAM_VIEW_DISABLED
+				default:
+					streamView = args[3]
+				}
+			}
+
+			if rc <= 0 && wc <= 0 && len(streamView) == 0 {
+				fmt.Println("no valid value for rc, wc or streamView")
 				return
 			}
 
 			if rc <= 0 {
-				rc = table.ProvisionedThroughput.ReadCapacityUnits
+				rc = 0 // table.ProvisionedThroughput.ReadCapacityUnits
 			}
 
 			if wc <= 0 {
-				wc = table.ProvisionedThroughput.WriteCapacityUnits
+				wc = 0 // table.ProvisionedThroughput.WriteCapacityUnits
 			}
 
-			if table, err := db.UpdateTable(tableName, rc, wc); err != nil {
+			if table, err := db.UpdateTable(tableName, rc, wc, streamView); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
