@@ -14,10 +14,10 @@ const (
 	TABLE_STATUS_UPDATING = "UPDATING"
 	TABLE_STATUS_ACTIVE   = "ACTIVE"
 
-	STREAM_VIEW_NEW         = "NEW_IMAGE"
-	STREAM_VIEW_OLD         = "OLD_IMAGE"
-	STREAM_VIEW_NEW_AND_OLD = "NEW_AND_OLD_IMAGES"
-	STREAM_VIEW_KEYS_ONLY   = "KEYS_ONLY"
+	STREAM_VIEW_NEW  = "NEW_IMAGE"
+	STREAM_VIEW_OLD  = "OLD_IMAGE"
+	STREAM_VIEW_ALL  = "NEW_AND_OLD_IMAGES"
+	STREAM_VIEW_KEYS = "KEYS_ONLY"
 )
 
 // EpochTime is like Time, but unmarshal from a number (seconds since Unix epoch) instead of a formatted string

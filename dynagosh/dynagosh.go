@@ -277,14 +277,16 @@ func main() {
 				return
 			}
 
-			fmt.Println("Available tables")
-
-			for _, tableName := range tables {
-				fmt.Println("  ", tableName)
-			}
-
 			if len(tables) > 0 {
+				fmt.Println("Available tables")
+
+				for _, tableName := range tables {
+					fmt.Println("  ", tableName)
+				}
+
 				table_list = tables
+			} else {
+				fmt.Println("No available tables")
 			}
 
 			return
@@ -327,7 +329,7 @@ func main() {
 
 	commander.Add(cmd.Command{"create",
 		`
-		create {tablename} hashKey:hashType [rangeKey:rangeType] [readCapacity] [writeCapacity]
+		create {tablename} hashKey:hashType [rangeKey:rangeType] [readCapacity] [writeCapacity] [streamView]
 		`,
 		func(line string) (stop bool) {
 			args := args.GetArgs(line)
@@ -343,6 +345,7 @@ func main() {
 			var rangeKey *dynago.AttributeDefinition
 			rc := 5
 			wc := 5
+			streamView := ""
 
 			if strings.Contains(args[1], ":") {
 				parts := strings.Split(args[1], ":")
@@ -364,7 +367,34 @@ func main() {
 				}
 			}
 
-			if table, err := db.CreateTable(tableName, hashKey, rangeKey, rc, wc); err != nil {
+			if len(args) > 3 {
+				if v, err := strconv.Atoi(args[3]); err == nil {
+					rc = v
+				}
+			}
+
+			if len(args) > 4 {
+				if v, err := strconv.Atoi(args[4]); err == nil {
+					wc = v
+				}
+			}
+
+			if len(args) > 5 {
+				switch args[5] {
+				case "old":
+					streamView = dynago.STREAM_VIEW_OLD
+				case "new":
+					streamView = dynago.STREAM_VIEW_NEW
+				case "all":
+					streamView = dynago.STREAM_VIEW_ALL
+				case "keys":
+					streamView = dynago.STREAM_VIEW_KEYS
+				default:
+					streamView = args[5]
+				}
+			}
+
+			if table, err := db.CreateTable(tableName, hashKey, rangeKey, rc, wc, streamView); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
@@ -752,24 +782,48 @@ func main() {
 		`
                 listStreams : display list of available streams
                 `,
-		func(string) (stop bool) {
-			streams, err := db.ListStreams()
+		func(line string) (stop bool) {
+			flags := args.NewFlags("listStreams")
+
+			tableName := flags.String("table", "", "table name")
+			limit := flags.Int("limit", 0, "maximum number of items per page")
+
+			if err := args.ParseFlags(flags, line); err != nil {
+				return
+			}
+
+			lsRequest := dynago.ListStreams()
+
+			if len(*tableName) > 0 {
+				lsRequest = lsRequest.WithTable(*tableName)
+			}
+
+			if *limit > 0 {
+				lsRequest = lsRequest.WithLimit(*limit)
+			}
+
+			streams, err := lsRequest.Exec(db)
 
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			fmt.Println("Available streams")
+			if len(streams) > 0 {
+				fmt.Println("Available streams")
 
-			for _, s := range streams {
-				fmt.Println("  ", s)
+				for _, s := range streams {
+					fmt.Println("  ", s)
+				}
+			} else {
+				fmt.Println("No available streams")
 			}
 
 			return
 		}})
 
 	commander.Commands["ls"] = commander.Commands["list"]
+	commander.Commands["lss"] = commander.Commands["listStreams"]
 	commander.Commands["drop"] = commander.Commands["delete"]
 
 	commander.CmdLoop()
