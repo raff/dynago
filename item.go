@@ -63,22 +63,92 @@ func (pi *Item) MarshalJSON() ([]byte, error) {
 
 type PutItemRequest struct {
 	TableName string
+	Item      Item
 
-	Item Item
+	ConditionalExpression string `json:",omitempty"`
+	ConditionalOperator   string `json:",omitempty"`
 
-	ReturnConsumedCapacity     string
-	ReturnItemCollectionMetric string
-	ReturnValues               string
+	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
+	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
+
+	ReturnConsumedCapacity      string `json:",omitempty"` // INDEXED | TOTAL | NONE
+	ReturnItemCollectionMetrics string `json:",omitempty"` // SIZE | NONE
+	ReturnValues                string `json:",omitempty"` // NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
 }
 
 type PutItemResult struct {
-	ConsumedCapacity ConsumedCapacityDescription
+	Attributes Item
 
-	Item Item
+	ConsumedCapacity      ConsumedCapacityDescription
+	ItemCollectionMetrics ItemCollectionMetrics
 }
 
-func (db *DBClient) PutItem(tableName string, item Item, consumed bool) (float32, error) {
-	return 0.0, nil
+type ItemCollectionMetrics struct {
+	ItemCollectionKey   AttributeNameValue
+	SizeEstimateRangeGB []float64
+}
+
+type PutOption func(*PutItemRequest)
+
+func PutConditionalExpression(expr string) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ConditionalExpression = expr
+	}
+}
+
+func PutConditionalOperator(and bool) PutOption {
+	return func(putReq *PutItemRequest) {
+		if and {
+			putReq.ConditionalOperator = "AND"
+		} else {
+			putReq.ConditionalOperator = "OR"
+		}
+	}
+}
+
+func PutExpressionAttributeNames(names map[string]string) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ExpressionAttributeNames = names
+	}
+}
+
+func PutExpressionAttributeValues(values AttributeNameValue) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ExpressionAttributeValues = values
+	}
+}
+
+func PutConsumedCapacity(target string) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ReturnConsumedCapacity = target
+	}
+}
+
+func PutCollectionMetrics(metrics string) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ReturnItemCollectionMetrics = metrics
+	}
+}
+
+func PutReturnValues(target string) PutOption {
+	return func(putReq *PutItemRequest) {
+		putReq.ReturnValues = target
+	}
+}
+
+func (db *DBClient) PutItem(tableName string, item Item, options ...PutOption) (*Item, float32, error) {
+	var putReq = PutItemRequest{TableName: tableName, Item: item}
+	var putRes PutItemResult
+
+	for _, option := range options {
+		option(&putReq)
+	}
+
+	if err := db.Query("PutItem", &putReq).Decode(&putRes); err != nil {
+		return nil, 0.0, err
+	} else {
+		return &putRes.Attributes, putRes.ConsumedCapacity.CapacityUnits, err
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////
