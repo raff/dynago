@@ -748,6 +748,27 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"listStreams",
+		`
+                listStreams : display list of available streams
+                `,
+		func(string) (stop bool) {
+			streams, err := db.ListStreams()
+
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			fmt.Println("Available streams")
+
+			for _, s := range streams {
+				fmt.Println("  ", s)
+			}
+
+			return
+		}})
+
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["drop"] = commander.Commands["delete"]
 
