@@ -46,6 +46,41 @@ func (pi *Item) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (pi *Item) MarshalJSON() ([]byte, error) {
+	dbitem := DBItem{}
+
+	for k, v := range *pi {
+		dbitem[k] = EncodeValue(v)
+	}
+
+	return json.Marshal(dbitem)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// PutItem
+//
+
+type PutItemRequest struct {
+	TableName string
+
+	Item Item
+
+	ReturnConsumedCapacity     string
+	ReturnItemCollectionMetric string
+	ReturnValues               string
+}
+
+type PutItemResult struct {
+	ConsumedCapacity ConsumedCapacityDescription
+
+	Item Item
+}
+
+func (db *DBClient) PutItem(tableName string, item Item, consumed bool) (float32, error) {
+    return 0.0, nil
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // GetItem
