@@ -102,63 +102,63 @@ type ItemCollectionMetrics struct {
 type PutOption func(*PutItemRequest)
 
 func PutConditionalExpression(expr string) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ConditionalExpression = expr
+	return func(req *PutItemRequest) {
+		req.ConditionalExpression = expr
 	}
 }
 
 func PutConditionalOperator(and bool) PutOption {
-	return func(putReq *PutItemRequest) {
+	return func(req *PutItemRequest) {
 		if and {
-			putReq.ConditionalOperator = "AND"
+			req.ConditionalOperator = "AND"
 		} else {
-			putReq.ConditionalOperator = "OR"
+			req.ConditionalOperator = "OR"
 		}
 	}
 }
 
 func PutExpressionAttributeNames(names map[string]string) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ExpressionAttributeNames = names
+	return func(req *PutItemRequest) {
+		req.ExpressionAttributeNames = names
 	}
 }
 
 func PutExpressionAttributeValues(values AttributeNameValue) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ExpressionAttributeValues = values
+	return func(req *PutItemRequest) {
+		req.ExpressionAttributeValues = values
 	}
 }
 
 func PutReturnConsumed(target string) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ReturnConsumedCapacity = target
+	return func(req *PutItemRequest) {
+		req.ReturnConsumedCapacity = target
 	}
 }
 
 func PutReturnMetrics(ret bool) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
+	return func(req *PutItemRequest) {
+		req.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
 	}
 }
 
 func PutReturnValues(target string) PutOption {
-	return func(putReq *PutItemRequest) {
-		putReq.ReturnValues = target
+	return func(req *PutItemRequest) {
+		req.ReturnValues = target
 	}
 }
 
 func (db *DBClient) PutItem(tableName string, item Item, options ...PutOption) (*Item, float32, error) {
-	var putReq = PutItemRequest{TableName: tableName, Item: item}
-	var putRes PutItemResult
+	var req = PutItemRequest{TableName: tableName, Item: item}
+	var res PutItemResult
 
 	for _, option := range options {
-		option(&putReq)
+		option(&req)
 	}
 
-	if err := db.Query("PutItem", &putReq).Decode(&putRes); err != nil {
+	if err := db.Query("PutItem", &req).Decode(&res); err != nil {
 		return nil, 0.0, err
 	} else {
-		return &putRes.Attributes, putRes.ConsumedCapacity.CapacityUnits, err
+		return &res.Attributes, res.ConsumedCapacity.CapacityUnits, err
 	}
 }
 
@@ -183,23 +183,23 @@ type GetItemResult struct {
 
 func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, attributes []string, consistent bool, consumed bool) (map[string]interface{}, float32, error) {
 
-	getReq := GetItemRequest{TableName: tableName, AttributesToGet: attributes, ConsistentRead: consistent, ReturnConsumedCapacity: RETURN_CONSUMED[consumed]}
-	getReq.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
+	req := GetItemRequest{TableName: tableName, AttributesToGet: attributes, ConsistentRead: consistent, ReturnConsumedCapacity: RETURN_CONSUMED[consumed]}
+	req.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
 	if rangeKey != nil {
-		getReq.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
+		req.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
 	}
 
-	var getRes GetItemResult
+	var res GetItemResult
 
-	if err := db.Query("GetItem", getReq).Decode(&getRes); err != nil {
+	if err := db.Query("GetItem", req).Decode(&res); err != nil {
 		return nil, 0.0, err
 	}
 
-	if len(getRes.Item) == 0 {
-		return nil, getRes.ConsumedCapacity.CapacityUnits, nil
+	if len(res.Item) == 0 {
+		return nil, res.ConsumedCapacity.CapacityUnits, nil
 	}
 
-	return getRes.Item, getRes.ConsumedCapacity.CapacityUnits, nil
+	return res.Item, res.ConsumedCapacity.CapacityUnits, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -237,61 +237,61 @@ func Query(tableName string) *QueryRequest {
 	return &QueryRequest{TableName: tableName, ScanIndexForward: true, KeyConditions: make(map[string]Condition)}
 }
 
-func (queryReq *QueryRequest) WithAttributes(attributes []string) *QueryRequest {
-	queryReq.AttributesToGet = attributes
-	return queryReq
+func (req *QueryRequest) WithAttributes(attributes []string) *QueryRequest {
+	req.AttributesToGet = attributes
+	return req
 }
 
-func (queryReq *QueryRequest) WithStartKey(startKey AttributeNameValue) *QueryRequest {
-	queryReq.ExclusiveStartKey = startKey
-	return queryReq
+func (req *QueryRequest) WithStartKey(startKey AttributeNameValue) *QueryRequest {
+	req.ExclusiveStartKey = startKey
+	return req
 }
 
-func (queryReq *QueryRequest) WithIndex(indexName string) *QueryRequest {
-	queryReq.IndexName = indexName
-	return queryReq
+func (req *QueryRequest) WithIndex(indexName string) *QueryRequest {
+	req.IndexName = indexName
+	return req
 }
 
-func (queryReq *QueryRequest) WithCondition(attrName string, condition Condition) *QueryRequest {
-	queryReq.KeyConditions[attrName] = condition
-	return queryReq
+func (req *QueryRequest) WithCondition(attrName string, condition Condition) *QueryRequest {
+	req.KeyConditions[attrName] = condition
+	return req
 }
 
-func (queryReq *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryRequest {
+func (req *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryRequest {
 	for k, v := range cond {
-		queryReq.KeyConditions[k] = v
+		req.KeyConditions[k] = v
 	}
 
-	return queryReq
+	return req
 }
 
-func (queryReq *QueryRequest) WithLimit(limit int) *QueryRequest {
-	queryReq.Limit = &limit
-	return queryReq
+func (req *QueryRequest) WithLimit(limit int) *QueryRequest {
+	req.Limit = &limit
+	return req
 }
 
-func (queryReq *QueryRequest) WithSelect(selectValue string) *QueryRequest {
-	queryReq.Select = selectValue
-	return queryReq
+func (req *QueryRequest) WithSelect(selectValue string) *QueryRequest {
+	req.Select = selectValue
+	return req
 }
 
-func (queryReq *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
-	queryReq.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
-	return queryReq
+func (req *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
+	req.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
+	return req
 }
 
-func (queryReq *QueryRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
-	if db == nil && queryReq.table != nil {
-		db = queryReq.table.DB
+func (req *QueryRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
+	if db == nil && req.table != nil {
+		db = req.table.DB
 	}
 
-	var queryRes QueryResult
+	var res QueryResult
 
-	if err := db.Query("Query", queryReq).Decode(&queryRes); err != nil {
+	if err := db.Query("Query", req).Decode(&res); err != nil {
 		return nil, nil, 0.0, err
 	}
 
-	return queryRes.Items, queryRes.LastEvaluatedKey, queryRes.ConsumedCapacity.CapacityUnits, nil
+	return res.Items, res.LastEvaluatedKey, res.ConsumedCapacity.CapacityUnits, nil
 }
 
 //////////////////////////////////////////////////////////////////////////////
