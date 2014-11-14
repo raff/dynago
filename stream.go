@@ -1,5 +1,12 @@
 package dynago
 
+const (
+	AT_SEQUENCE    = "AT_SEQUENCE_NUMBER"
+	AFTER_SEQUENCE = "AFTER_SEQUENCE_NUMBER"
+	LAST           = "TRIM_HORIZON"
+	LATEST         = "LATEST"
+)
+
 type SequenceNumberRange struct {
 	StartingSequenceNumber string
 	EndingSequenceNumber   string
@@ -126,7 +133,7 @@ func (db *DBClient) DescribeStream(streamId string, options ...DescribeStreamOpt
 type GetShardIteratorRequest struct {
 	StreamId          string
 	ShardId           string
-	ShardIteratorType string
+	ShardIteratorType string // TRIM_HORIZON | LATEST | AT_SEQUENCE_NUMBER | AFTER_SEQUENCE_NUMBER
 	SequenceNumber    string `json:",omitempty"`
 }
 

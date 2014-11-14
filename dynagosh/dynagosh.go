@@ -937,9 +937,22 @@ func main() {
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			follow := flags.Bool("follow", false, "follow iterator")
 			iter := flags.String("iter", "", "use this shard iterator")
+			itype := flags.String("type", dynago.LAST, "shard iterator type")
+			iseq := flags.String("seq", "", "sequence number")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
+			}
+
+			switch *itype {
+			case "at":
+				*itype = dynago.AT_SEQUENCE
+			case "after":
+				*itype = dynago.AFTER_SEQUENCE
+			case "last":
+				*itype = dynago.LAST
+			case "latest":
+				*itype = dynago.LATEST
 			}
 
 			args := flags.Args()
@@ -958,8 +971,8 @@ func main() {
 				}
 
 				shardId := stream.Shards[0].ShardId
-				shardIteratorType := "TRIM_HORIZON"
-				sequenceNumber := ""
+				shardIteratorType := *itype
+				sequenceNumber := *iseq
 
 				iter, err := db.GetShardIterator(streamId, shardId, shardIteratorType, sequenceNumber)
 				if err != nil {
