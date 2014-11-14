@@ -67,35 +67,35 @@ type ListStreamsResult struct {
 type ListStreamsOption func(*ListStreamsRequest)
 
 func LsTable(tableName string) ListStreamsOption {
-	return func(lsReq *ListStreamsRequest) {
-		lsReq.TableName = tableName
+	return func(req *ListStreamsRequest) {
+		req.TableName = tableName
 	}
 }
 
 func LsLimit(limit int) ListStreamsOption {
-	return func(lsReq *ListStreamsRequest) {
-		lsReq.Limit = limit
+	return func(req *ListStreamsRequest) {
+		req.Limit = limit
 	}
 }
 
 func LsStartItem(startItem string) ListStreamsOption {
-	return func(lsReq *ListStreamsRequest) {
-		lsReq.ExclusiveStartItem = startItem
+	return func(req *ListStreamsRequest) {
+		req.ExclusiveStartItem = startItem
 	}
 }
 
 func (db *DBClient) ListStreams(options ...ListStreamsOption) ([]string, error) {
-	var listReq ListStreamsRequest
-	var listRes ListStreamsResult
+	var req ListStreamsRequest
+	var res ListStreamsResult
 
 	for _, option := range options {
-		option(&listReq)
+		option(&req)
 	}
 
-	if err := db.Query("ListStreams", &listReq).Decode(&listRes); err != nil {
+	if err := db.Query("ListStreams", &req).Decode(&res); err != nil {
 		return nil, err
 	} else {
-		return listRes.StreamIds, nil
+		return res.StreamIds, nil
 	}
 }
 
@@ -117,29 +117,29 @@ type DescribeStreamResult struct {
 type DescribeStreamOption func(*DescribeStreamRequest)
 
 func DsStart(startId string) DescribeStreamOption {
-	return func(descReq *DescribeStreamRequest) {
-		descReq.ExclusiveStartShardId = startId
+	return func(req *DescribeStreamRequest) {
+		req.ExclusiveStartShardId = startId
 	}
 }
 
 func DsLimit(limit int) DescribeStreamOption {
-	return func(descReq *DescribeStreamRequest) {
-		descReq.Limit = limit
+	return func(req *DescribeStreamRequest) {
+		req.Limit = limit
 	}
 }
 
 func (db *DBClient) DescribeStream(streamId string, options ...DescribeStreamOption) (*StreamDescription, error) {
-	var descReq = DescribeStreamRequest{StreamId: streamId}
-	var descRes DescribeStreamResult
+	var req = DescribeStreamRequest{StreamId: streamId}
+	var res DescribeStreamResult
 
 	for _, option := range options {
-		option(&descReq)
+		option(&req)
 	}
 
-	if err := db.Query("DescribeStream", &descReq).Decode(&descRes); err != nil {
+	if err := db.Query("DescribeStream", &req).Decode(&res); err != nil {
 		return nil, err
 	} else {
-		return &descRes.StreamDescription, nil
+		return &res.StreamDescription, nil
 	}
 }
 
@@ -160,18 +160,18 @@ type GetShardIteratorResult struct {
 }
 
 func (db *DBClient) GetShardIterator(streamId, shardId, shardIteratorType, sequenceNumber string) (string, error) {
-	var siReq = GetShardIteratorRequest{
+	var req = GetShardIteratorRequest{
 		StreamId:          streamId,
 		ShardId:           shardId,
 		ShardIteratorType: shardIteratorType,
 		SequenceNumber:    sequenceNumber}
 
-	var siRes GetShardIteratorResult
+	var res GetShardIteratorResult
 
-	if err := db.Query("GetShardIterator", &siReq).Decode(&siRes); err != nil {
+	if err := db.Query("GetShardIterator", &req).Decode(&res); err != nil {
 		return "", err
 	} else {
-		return siRes.ShardIterator, nil
+		return res.ShardIterator, nil
 	}
 }
 
@@ -191,12 +191,12 @@ type GetRecordsResult struct {
 }
 
 func (db *DBClient) GetRecords(shardIterator string, limit int) (*GetRecordsResult, error) {
-	var rReq = GetRecordsRequest{ShardIterator: shardIterator, Limit: limit}
-	var rRes GetRecordsResult
+	var req = GetRecordsRequest{ShardIterator: shardIterator, Limit: limit}
+	var res GetRecordsResult
 
-	if err := db.Query("GetRecords", &rReq).Decode(&rRes); err != nil {
+	if err := db.Query("GetRecords", &req).Decode(&res); err != nil {
 		return nil, err
 	} else {
-		return &rRes, err
+		return &res, err
 	}
 }
