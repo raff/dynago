@@ -164,12 +164,107 @@ func (db *DBClient) PutItem(tableName string, item Item, options ...PutOption) (
 
 //////////////////////////////////////////////////////////////////////////////
 //
+// DeleteItem
+//
+
+type DeleteItemRequest struct {
+	TableName string
+	Key       AttributeNameValue
+
+	ConditionalExpression string `json:",omitempty"`
+	ConditionalOperator   string `json:",omitempty"`
+
+	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
+	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
+
+	ReturnConsumedCapacity      string `json:",omitempty"` // INDEXED | TOTAL | NONE
+	ReturnItemCollectionMetrics string `json:",omitempty"` // SIZE | NONE
+	ReturnValues                string `json:",omitempty"` // NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
+}
+
+type DeleteItemResult struct {
+	Attributes Item
+
+	ConsumedCapacity      ConsumedCapacityDescription
+	ItemCollectionMetrics ItemCollectionMetrics
+}
+
+type DeleteOption func(*DeleteItemRequest)
+
+func DeleteConditionalExpression(expr string) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ConditionalExpression = expr
+	}
+}
+
+func DeleteConditionalOperator(and bool) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		if and {
+			req.ConditionalOperator = "AND"
+		} else {
+			req.ConditionalOperator = "OR"
+		}
+	}
+}
+
+func DeleteExpressionAttributeNames(names map[string]string) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ExpressionAttributeNames = names
+	}
+}
+
+func DeleteExpressionAttributeValues(values AttributeNameValue) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ExpressionAttributeValues = values
+	}
+}
+
+func DeleteReturnConsumed(target string) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ReturnConsumedCapacity = target
+	}
+}
+
+func DeleteReturnMetrics(ret bool) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
+	}
+}
+
+func DeleteReturnValues(target string) DeleteOption {
+	return func(req *DeleteItemRequest) {
+		req.ReturnValues = target
+	}
+}
+
+func (db *DBClient) DeleteItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, options ...DeleteOption) (*Item, float32, error) {
+	var req = DeleteItemRequest{TableName: tableName}
+	var res DeleteItemResult
+
+	req.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
+	if rangeKey != nil {
+		req.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
+	}
+
+	for _, option := range options {
+		option(&req)
+	}
+
+	if err := db.Query("DeleteItem", &req).Decode(&res); err != nil {
+		return nil, 0.0, err
+	} else {
+		return &res.Attributes, res.ConsumedCapacity.CapacityUnits, err
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
 // GetItem
 //
 
 type GetItemRequest struct {
 	TableName              string
-	Key                    map[string]AttributeValue
+	Key                    AttributeNameValue
 	AttributesToGet        []string
 	ConsistentRead         bool
 	ReturnConsumedCapacity string

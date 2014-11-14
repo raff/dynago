@@ -537,6 +537,48 @@ func main() {
 			return
 		}})
 
+	commander.Add(cmd.Command{"remove",
+		`
+		remove {tablename} {hashKey} [rangeKey]
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+
+			if len(args) < 2 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName, args := args[0], args[1:]
+			table, err := db.GetTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			hashKey, args := args[0], args[1:]
+			var rangeKey interface{}
+
+			// XXX: here we are forced to pass a rangeKey in order to get to "attributes"
+			//      we should probably add a --rangeKey parameter or have a "splittable" single key
+			if len(args) > 0 {
+				rangeKey, args = args[0], args[1:]
+			}
+
+			if item, consumed, err := table.DeleteItem(
+				hashKey,
+				rangeKey,
+				dynago.DeleteReturnValues(dynago.RETURN_ALL_OLD),
+				dynago.DeleteReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(item)
+				fmt.Println("consumed:", consumed)
+			}
+
+			return
+		}})
+
 	commander.Add(cmd.Command{"get",
 		`
 		get {tablename} {hashKey} [rangeKey] [attributes]
@@ -1026,6 +1068,9 @@ func main() {
 				if *follow && len(nextIterator) > 0 {
 					shardIterator = nextIterator
 					if len(records.Records) == 0 && *wait > 0 {
+						if !*verbose {
+							fmt.Println("waiting...")
+						}
 						time.Sleep(time.Duration(*wait) * time.Second)
 					}
 				} else {
@@ -1039,6 +1084,7 @@ func main() {
 	commander.Commands["dt"] = commander.Commands["describe"]
 	commander.Commands["drop"] = commander.Commands["delete"]
 	commander.Commands["ls"] = commander.Commands["list"]
+	commander.Commands["rm"] = commander.Commands["remove"]
 	commander.Commands["lss"] = commander.Commands["listStreams"]
 	commander.Commands["ds"] = commander.Commands["describeStream"]
 	commander.Commands["lsr"] = commander.Commands["streamRecords"]
