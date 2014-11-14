@@ -366,7 +366,7 @@ func main() {
 			}
 
 			if len(args) > 2 {
-				rangeKey := &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
+				rangeKey = &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
 
 				if strings.Contains(args[2], ":") {
 					parts := strings.Split(args[2], ":")
