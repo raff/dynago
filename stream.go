@@ -30,6 +30,24 @@ type StreamDescription struct {
 	Shards                  []ShardDescription
 }
 
+type StreamRecord struct {
+	Keys           Item
+	NewImage       Item
+	OldImage       Item
+	SequenceNumber string
+	SizeBytes      int64
+	StreamViewType string
+}
+
+type Record struct {
+	AwsRegion    string       `json:"awsRegion"`
+	Dynamodb     StreamRecord `json:"dynamodb"`
+	EventID      string       `json:"eventID"`
+	EventName    string       `json:"eventName"`
+	EventSource  string       `json:"eventSource"`
+	EventVersion string       `json:"eventVersion"`
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // ListStreams
@@ -169,7 +187,7 @@ type GetRecordsRequest struct {
 
 type GetRecordsResult struct {
 	NextShardIterator string
-	Records           []map[string]interface{}
+	Records           []Record
 }
 
 func (db *DBClient) GetRecords(shardIterator string, limit int) (*GetRecordsResult, error) {
