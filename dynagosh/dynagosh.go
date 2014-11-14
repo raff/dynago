@@ -1042,10 +1042,18 @@ func main() {
 
 							switch values.StreamViewType {
 							case dynago.STREAM_VIEW_OLD:
-								fmt.Println(op, pretty.PrettyFormat(values.OldImage))
+								if len(values.OldImage) > 0 {
+									fmt.Println(op, pretty.PrettyFormat(values.OldImage))
+								} else {
+									fmt.Println(op, "key", pretty.PrettyFormat(values.Keys))
+								}
 
 							case dynago.STREAM_VIEW_NEW:
-								fmt.Println(op, pretty.PrettyFormat(values.NewImage))
+								if len(values.NewImage) > 0 {
+									fmt.Println(op, pretty.PrettyFormat(values.NewImage))
+								} else {
+									fmt.Println(op, "key", pretty.PrettyFormat(values.Keys))
+								}
 
 							case dynago.STREAM_VIEW_KEYS:
 								fmt.Println(op, pretty.PrettyFormat(values.Keys))
