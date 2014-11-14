@@ -940,6 +940,7 @@ func main() {
 			iter := flags.String("iter", "", "use this shard iterator")
 			itype := flags.String("type", dynago.LAST, "shard iterator type")
 			iseq := flags.String("seq", "", "sequence number")
+			verbose := flags.Bool("verbose", false, "display full records")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -990,7 +991,35 @@ func main() {
 					fmt.Println(err)
 					return
 				} else {
-					pretty.PrettyPrint(records)
+					if *verbose {
+						pretty.PrettyPrint(records)
+					} else {
+						for _, r := range records.Records {
+							op := r.EventName
+							values := r.Dynamodb
+
+							switch values.StreamViewType {
+							case dynago.STREAM_VIEW_OLD:
+								fmt.Println(op, pretty.PrettyFormat(values.OldImage))
+
+							case dynago.STREAM_VIEW_NEW:
+								fmt.Println(op, pretty.PrettyFormat(values.NewImage))
+
+							case dynago.STREAM_VIEW_KEYS:
+								fmt.Println(op, pretty.PrettyFormat(values.Keys))
+
+							case dynago.STREAM_VIEW_ALL:
+								fmt.Println(op,
+									"old",
+									pretty.PrettyFormat(values.OldImage),
+									"new",
+									pretty.PrettyFormat(values.NewImage))
+							}
+
+						}
+
+					}
+
 					nextIterator = records.NextShardIterator
 				}
 
