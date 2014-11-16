@@ -40,7 +40,8 @@ Each of these sections should have the correct accessKey and secretKey to access
 In order to test against DynamoDB local (the local "test" version of DynamoDB):
 * Download/install and run DynamoDB Local:
   http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
-* Add an entry in /etc/hosts for a URL that looks like a DynamoDB endpoint:
+  (use [this version](http://dynamodb-preview.s3-website-us-west-2.amazonaws.com/docs/streams-dg/About.html#RequiredToolsAndResources.DynamoDBLocal) for streams support.
+* Add an entry in /etc/hosts for a URL that looks like a DynamoDB endpoint (aws4.Sign picks the region from the endpoint URL):
 ```
     127.0.0.1 dynamodb.local.amazonaws.com
 ```
