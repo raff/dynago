@@ -10,13 +10,19 @@ import (
 )
 
 const (
-	REGION_US_EAST_1 = "https://dynamodb.us-east-1.amazonaws.com/"
-	REGION_US_WEST_1 = "https://dynamodb.us-west-1.amazonaws.com/"
-	REGION_US_WEST_2 = "https://dynamodb.us-west-2.amazonaws.com/"
-
-	region_pattern = "https://dynamodb.{}.amazonaws.com/"
+	REGION_US_EAST_1 = "us-east-1"
+	REGION_US_WEST_1 = "us-west-1"
+	REGION_US_WEST_2 = "us-west-2"
 
 	RETRY_COUNT = 10
+)
+
+var (
+	Regions = map[string]string{
+		REGION_US_EAST_1: "https://dynamodb.us-east-1.amazonaws.com/",
+		REGION_US_WEST_1: "https://dynamodb.us-west-1.amazonaws.com/",
+		REGION_US_WEST_2: "https://dynamodb.us-west-2.amazonaws.com/",
+	}
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -42,9 +48,15 @@ func (db *DBClient) WithRegion(region string) *DBClient {
 
 	if !strings.Contains(region, "/") {
 		// not a URL
-		region = strings.Replace(region_pattern, "{}", region, 1)
+		region = Regions[region]
 	}
 	db.URL = region
+	return db
+}
+
+func (db *DBClient) WithRegionAndURL(region, url string) *DBClient {
+	db.URL = url
+	db.Region = region
 	return db
 }
 
