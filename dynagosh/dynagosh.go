@@ -116,20 +116,16 @@ func remove_from_list(table string) {
 }
 
 // return list of table names that match the input pattern (table name starts with "text")
-func CompletionFunction(text string, line string, start, stop int) []string {
+func CompletionFunction(text string, line string) (matches []string) {
 	if len(table_list) > 0 {
-		matches := make([]string, 0, len(table_list))
-
 		for _, w := range table_list {
 			if strings.HasPrefix(w, text) {
 				matches = append(matches, w)
 			}
 		}
-
-		return matches
 	}
 
-	return nil
+	return
 }
 
 type RangeCondition struct {
