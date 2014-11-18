@@ -50,6 +50,7 @@ type Config struct {
 
 	// list of named profiles
 	Profile map[string]*struct {
+		URL       string
 		Region    string
 		AccessKey string
 		SecretKey string
@@ -245,7 +246,9 @@ func main() {
 
 	db := dynago.NewDBClient()
 
-	if len(profile.Region) > 0 {
+	if len(profile.URL) > 0 {
+		db.WithRegionAndURL(profile.Region, profile.URL)
+	} else if len(profile.Region) > 0 {
 		db.WithRegion(profile.Region)
 	}
 
@@ -974,7 +977,7 @@ func main() {
 
 			limit := flags.Int("limit", 0, "maximum number of items per page")
 			follow := flags.Bool("follow", false, "follow iterator")
-			wait := flags.Int("wait", 1, "number of seconds to wait if --follow and no new records")
+			wait := flags.Duration("wait", time.Second, "time to wait if --follow and no new records")
 			iter := flags.String("iter", "", "use this shard iterator")
 			itype := flags.String("type", dynago.LAST, "shard iterator type")
 			iseq := flags.String("seq", "", "sequence number")
@@ -1075,7 +1078,7 @@ func main() {
 						if !*verbose {
 							fmt.Println("waiting...")
 						}
-						time.Sleep(time.Duration(*wait) * time.Second)
+						time.Sleep(*wait)
 					}
 				} else {
 					break
