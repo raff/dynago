@@ -57,6 +57,11 @@ func (db *DBClient) WithRegion(region string) *DBClient {
 func (db *DBClient) WithRegionAndURL(region, url string) *DBClient {
 	db.URL = url
 	db.Region = region
+
+        if strings.Contains(url, "/streams.") { // Ugly temp hack!
+            db.Target = "DynamoDBStreams"
+        }
+
 	return db
 }
 
