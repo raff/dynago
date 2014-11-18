@@ -91,7 +91,9 @@ func ReadConfig(configFile string, env string) *Config {
 
 var (
 	// this hold the current list of table names, to be used by the CompletionFunction
-	table_list  []string
+	table_list []string
+
+	// this hold the curent list of streams
 	stream_list []string
 )
 
@@ -203,6 +205,25 @@ func (filter *ScanFilter) Set(value string) error {
 
 func (filter *ScanFilter) String() string {
 	return "name:type:value"
+}
+
+type KeyDefinition dynago.AttributeDefinition
+
+func (key *KeyDefinition) Set(value string) error {
+	parts := strings.SplitN(value, ":", 2)
+
+	key.AttributeName = parts[0]
+	if len(parts) > 1 {
+		key.AttributeType = parts[1]
+	} else {
+		key.AttributeType = dynago.STRING_ATTRIBUTE
+	}
+
+	return nil
+}
+
+func (key *KeyDefinition) String() string {
+	return "name:type"
 }
 
 func jsonString(v interface{}) string {
@@ -342,78 +363,54 @@ func main() {
 
 	commander.Add(cmd.Command{"create",
 		`
-		create {tablename} hashKey:hashType [rangeKey:rangeType] [readCapacity] [writeCapacity] [streamView]
+		create --table=name --hash=name:type [--range=name:type] [--rc=readCapacity] [--wc=writeCapacity] [--streams=streamView]
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("create")
 
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			tableName := flags.String("table", "", "table name")
+			rc := flags.Int("rc", 1, "read capacity")
+			wc := flags.Int("wc", 1, "write capacity")
+			streamView := flags.String("streams", "no", "stream view (all|new|old|keys|no)")
+
+			var hashKey, rangeKey KeyDefinition
+			flags.Var(&hashKey, "hash", "hash key")
+			flags.Var(&rangeKey, "range", "range key")
+
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName := args[0]
-
-			hashKey := &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
-			var rangeKey *dynago.AttributeDefinition
-			rc := 5
-			wc := 5
-			streamView := ""
-
-			if strings.Contains(args[1], ":") {
-				parts := strings.Split(args[1], ":")
-				hashKey.AttributeName = parts[0]
-				hashKey.AttributeType = parts[1]
-			} else {
-				hashKey.AttributeName = args[1]
+			if len(*tableName) == 0 {
+				fmt.Println("missing table name")
+				return
 			}
 
-			if len(args) > 2 {
-				rangeKey = &dynago.AttributeDefinition{AttributeType: dynago.STRING_ATTRIBUTE}
-
-				if strings.Contains(args[2], ":") {
-					parts := strings.Split(args[2], ":")
-					rangeKey.AttributeName = parts[0]
-					rangeKey.AttributeType = parts[1]
-				} else {
-					rangeKey.AttributeName = args[2]
-				}
+			if len(hashKey.AttributeName) == 0 {
+				fmt.Println("missing hash key")
+				return
 			}
 
-			if len(args) > 3 {
-				if v, err := strconv.Atoi(args[3]); err == nil {
-					rc = v
-				}
+			switch *streamView {
+			case "old":
+				*streamView = dynago.STREAM_VIEW_OLD
+			case "new":
+				*streamView = dynago.STREAM_VIEW_NEW
+			case "all":
+				*streamView = dynago.STREAM_VIEW_ALL
+			case "keys":
+				*streamView = dynago.STREAM_VIEW_KEYS
+			case "no", "":
+				*streamView = dynago.STREAM_VIEW_DISABLED
 			}
 
-			if len(args) > 4 {
-				if v, err := strconv.Atoi(args[4]); err == nil {
-					wc = v
-				}
-			}
-
-			if len(args) > 5 {
-				switch args[5] {
-				case "old":
-					streamView = dynago.STREAM_VIEW_OLD
-				case "new":
-					streamView = dynago.STREAM_VIEW_NEW
-				case "all":
-					streamView = dynago.STREAM_VIEW_ALL
-				case "keys":
-					streamView = dynago.STREAM_VIEW_KEYS
-				case "no":
-					streamView = dynago.STREAM_VIEW_DISABLED
-				default:
-					streamView = args[5]
-				}
-			}
-
-			if table, err := db.CreateTable(tableName, hashKey, rangeKey, rc, wc, streamView); err != nil {
+			if table, err := db.CreateTable(*tableName,
+				dynago.AttributeDefinition(hashKey), dynago.AttributeDefinition(rangeKey),
+				*rc, *wc, *streamView); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
-				add_to_list(tableName)
+				add_to_list(*tableName)
 			}
 
 			return

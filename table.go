@@ -167,16 +167,16 @@ type CreateTableResult struct {
 	TableDescription TableDescription
 }
 
-func (db *DBClient) CreateTable(tableName string, hashKey *AttributeDefinition, rangeKey *AttributeDefinition, rc, wc int, streamView string) (*TableDescription, error) {
+func (db *DBClient) CreateTable(tableName string, hashKey AttributeDefinition, rangeKey AttributeDefinition, rc, wc int, streamView string) (*TableDescription, error) {
 	createReq := CreateTableRequest{
 		TableName:             tableName,
 		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
 	}
 
-	attrs := []AttributeDefinition{*hashKey}
+	attrs := []AttributeDefinition{hashKey}
 	schema := []KeySchemaElement{KeySchemaElement{hashKey.AttributeName, HASH_KEY_TYPE}}
-	if rangeKey != nil {
-		attrs = append(attrs, *rangeKey)
+	if len(rangeKey.AttributeName) > 0 {
+		attrs = append(attrs, rangeKey)
 		schema = append(schema, KeySchemaElement{rangeKey.AttributeName, RANGE_KEY_TYPE})
 	}
 
