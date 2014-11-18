@@ -272,7 +272,8 @@ func main() {
 		func(string) (stop bool) {
 			pretty.PrettyPrint(config)
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"list",
 		`
@@ -299,7 +300,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"describe",
 		`
@@ -315,7 +317,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"use",
 		`
@@ -334,7 +337,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"create",
 		`
@@ -413,7 +417,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"delete",
 		`
@@ -430,7 +435,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"update",
 		`
@@ -497,7 +503,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"put",
 		`
@@ -534,7 +541,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"remove",
 		`
@@ -576,7 +584,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"get",
 		`
@@ -625,7 +634,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"query",
 		`
@@ -728,7 +738,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"scan",
 		`
@@ -877,7 +888,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"listStreams",
 		`
@@ -923,7 +935,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"describeStream",
 		`
@@ -966,7 +979,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Add(cmd.Command{"streamRecords",
 		`
@@ -1086,7 +1100,8 @@ func main() {
 			}
 
 			return
-		}})
+		},
+		nil})
 
 	commander.Commands["dt"] = commander.Commands["describe"]
 	commander.Commands["drop"] = commander.Commands["delete"]
