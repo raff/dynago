@@ -34,17 +34,18 @@ type DBClient struct {
 	dydb.DB
 }
 
-// Create a new DynamoDB client
+// NewDBClient creates a new DynamoDB client
 func NewDBClient() (db *DBClient) {
 	db = &DBClient{}
 	return
 }
 
-func (db *DBClient) Query(action string, v interface{}) dydb.Decoder {
-	return db.DB.RetryQuery(action, v, RETRY_COUNT)
-}
-
-func (db *DBClient) WithRegion(region string) *DBClient {
+//
+// SetRegion sets the URL for a particular region (us-east-1, us-west-1, etc.)
+//
+// If region looks like an URL it's used as the endpoint URL (and the region is derived from it)
+//
+func (db *DBClient) SetRegion(region string) *DBClient {
 
 	if !strings.Contains(region, "/") {
 		// not a URL
@@ -54,18 +55,34 @@ func (db *DBClient) WithRegion(region string) *DBClient {
 	return db
 }
 
-func (db *DBClient) WithRegionAndURL(region, url string) *DBClient {
+//
+// SetRegionAndURL set the region and the endpoint URL
+//
+// Useful when using non-standard URLs (i.e. DynamoDB Local)
+//
+func (db *DBClient) SetRegionAndURL(region, url string) *DBClient {
 	db.URL = url
 	db.Region = region
 
-        if strings.Contains(url, "/streams.") { // Ugly temp hack!
-            db.Target = "DynamoDBStreams"
-        }
+	if strings.Contains(url, "/streams.") { // Ugly temp hack!
+		db.Target = "DynamoDBStreams"
+	}
 
 	return db
 }
 
-func (db *DBClient) WithCredentials(accessKey, secretKey string) *DBClient {
+//
+// SetCredentials sets client's credentials. If not set the driver will
+// try to get them from the environment
+//
+func (db *DBClient) SetCredentials(accessKey, secretKey string) *DBClient {
 	db.Client = &aws4.Client{Keys: &aws4.Keys{AccessKey: accessKey, SecretKey: secretKey}}
 	return db
+}
+
+//
+// Query executes a DynamoDB query
+//
+func (db *DBClient) Query(action string, v interface{}) dydb.Decoder {
+	return db.DB.RetryQuery(action, v, RETRY_COUNT)
 }

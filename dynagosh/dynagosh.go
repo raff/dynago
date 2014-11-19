@@ -268,13 +268,13 @@ func main() {
 	db := dynago.NewDBClient()
 
 	if len(profile.URL) > 0 {
-		db.WithRegionAndURL(profile.Region, profile.URL)
+		db.SetRegionAndURL(profile.Region, profile.URL)
 	} else if len(profile.Region) > 0 {
-		db.WithRegion(profile.Region)
+		db.SetRegion(profile.Region)
 	}
 
 	if len(profile.AccessKey) > 0 {
-		db.WithCredentials(profile.AccessKey, profile.SecretKey)
+		db.SetCredentials(profile.AccessKey, profile.SecretKey)
 	}
 
 	commander := &cmd.Cmd{HistoryFile: HISTORY_FILE, Complete: CompletionFunction, EnableShell: true}
@@ -709,26 +709,26 @@ func main() {
 			if len(rangeCond.Operator) > 0 {
 				switch rangeCond.Operator {
 				case "NULL", "NOT_NULL":
-					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator))
+					query.SetAttrCondition(table.RangeKey().Condition(rangeCond.Operator))
 				default:
-					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
+					query.SetAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
 				}
 			}
 
 			if *limit > 0 {
-				query = query.WithLimit(*limit)
+				query.SetLimit(*limit)
 			}
 
 			if *count {
-				query = query.WithSelect(dynago.SELECT_COUNT)
+				query.SetSelect(dynago.SELECT_COUNT)
 			}
 
 			if *next {
-				query = query.WithStartKey(nextKey)
+				query.SetStartKey(nextKey)
 			}
 
 			if *consumed {
-				query = query.WithConsumed(true)
+				query.SetConsumed(true)
 			}
 
 			if items, lastKey, consumed, err := query.Exec(nil); err != nil {
@@ -757,7 +757,7 @@ func main() {
 			cons := flags.Bool("consumed", false, "return consumed capacity")
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
-			delay := flags.String("delay", "0ms", "delay (as duration string) between scan requests")
+			delay := flags.Duration("delay", 0, "delay (as duration string) between scan requests")
 			format := flags.String("format", "pretty", "output format: pretty, compact or json")
 			all := flags.Bool("all", false, "fetch all entries")
 			next := flags.Bool("next", false, "get next page")
@@ -798,25 +798,23 @@ func main() {
 			scan := dynago.ScanTable(table)
 
 			if *segment != 0 || *total != 0 {
-				scan = scan.WithSegment(*segment, *total)
+				scan.SetSegment(*segment, *total)
 			}
 
 			if len(filters) > 0 {
-				scan = scan.WithFilters(filters)
+				scan.SetFilters(filters)
 			}
 
 			if *limit > 0 {
-				scan = scan.WithLimit(*limit)
+				scan.SetLimit(*limit)
 			}
 
 			if *cons {
-				scan = scan.WithConsumed(true)
+				scan.SetConsumed(true)
 			}
 
-			scanDelay, _ := time.ParseDuration(*delay)
-
 			if *count {
-				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, scanDelay); err != nil {
+				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, *delay); err != nil {
 					log.Println(err)
 				} else {
 					fmt.Println("count:", totalCount)
@@ -844,7 +842,7 @@ func main() {
 
 			for {
 				if *next {
-					scan = scan.WithStartKey(nextKey)
+					scan.SetStartKey(nextKey)
 				}
 
 				if *debug {
@@ -884,9 +882,9 @@ func main() {
 					}
 				}
 
-				if scanDelay > 0 {
+				if *delay > 0 {
 					log.Println(jsonString(nextKey), consumed)
-					time.Sleep(scanDelay)
+					time.Sleep(*delay)
 				}
 			}
 
