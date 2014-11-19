@@ -329,9 +329,18 @@ func main() {
                 describe {table} : display table configuration
                 `,
 		func(line string) (stop bool) {
-			tableName := line
-			table, err := db.DescribeTable(tableName)
-			if err != nil {
+			var tableName string
+
+			if len(line) > 0 {
+				tableName = line
+			} else if selectedTable != nil {
+				tableName = selectedTable.Name
+			} else {
+				fmt.Println("nothing to describe")
+				return
+			}
+
+			if table, err := db.DescribeTable(tableName); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
@@ -346,15 +355,23 @@ func main() {
                 use {table} : select table for queries
                 `,
 		func(line string) (stop bool) {
-			tableName := line
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				selectedTable = table
-				if *prompt {
-					commander.Prompt = "dynagosh: " + tableName + "> "
+			if len(line) > 0 {
+				tableName := line
+				table, err := db.GetTable(tableName)
+				if err != nil {
+					fmt.Println(err)
+				} else {
+					selectedTable = table
+					if *prompt {
+						commander.Prompt = "dynagosh: " + tableName + "> "
+					}
 				}
+			}
+
+			if selectedTable != nil {
+				fmt.Println("using", selectedTable.Name)
+			} else {
+				fmt.Println("no table selected")
 			}
 
 			return
@@ -440,60 +457,49 @@ func main() {
 		update {tablename} readCapacity writeCapacity streamView
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("create")
 
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			tableName := flags.String("table", "", "table name")
+			rc := flags.Int("rc", 0, "read capacity")
+			wc := flags.Int("wc", 0, "write capacity")
+			streamView := flags.String("streams", "no", "stream view (all|new|old|keys|no)")
+
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName := args[0]
-
-			rc := -1 // table.ProvisionedThroughput.ReadCapacityUnits
-			wc := -1 // table.ProvisionedThroughput.WriteCapacityUnits
-			streamView := ""
-
-			if v, err := strconv.Atoi(args[1]); err == nil {
-				rc = v
+			if len(*tableName) == 0 {
+				fmt.Println("missing table name")
+				return
 			}
 
-			if len(args) > 2 {
-				if v, err := strconv.Atoi(args[2]); err == nil {
-					wc = v
-				}
+			switch *streamView {
+			case "old":
+				*streamView = dynago.STREAM_VIEW_OLD
+			case "new":
+				*streamView = dynago.STREAM_VIEW_NEW
+			case "all":
+				*streamView = dynago.STREAM_VIEW_ALL
+			case "keys":
+				*streamView = dynago.STREAM_VIEW_KEYS
+			case "no", "":
+				*streamView = dynago.STREAM_VIEW_DISABLED
 			}
 
-			if len(args) > 3 {
-				switch args[3] {
-				case "old":
-					streamView = dynago.STREAM_VIEW_OLD
-				case "new":
-					streamView = dynago.STREAM_VIEW_NEW
-				case "all":
-					streamView = dynago.STREAM_VIEW_ALL
-				case "keys":
-					streamView = dynago.STREAM_VIEW_KEYS
-				case "no":
-					streamView = dynago.STREAM_VIEW_DISABLED
-				default:
-					streamView = args[3]
-				}
-			}
-
-			if rc <= 0 && wc <= 0 && len(streamView) == 0 {
+			if *rc <= 0 && *wc <= 0 && len(*streamView) == 0 {
 				fmt.Println("no valid value for rc, wc or streamView")
 				return
 			}
 
-			if rc <= 0 {
-				rc = 0 // table.ProvisionedThroughput.ReadCapacityUnits
+			if *rc <= 0 {
+				*rc = 0 // table.ProvisionedThroughput.ReadCapacityUnits
 			}
 
-			if wc <= 0 {
-				wc = 0 // table.ProvisionedThroughput.WriteCapacityUnits
+			if *wc <= 0 {
+				*wc = 0 // table.ProvisionedThroughput.WriteCapacityUnits
 			}
 
-			if table, err := db.UpdateTable(tableName, rc, wc, streamView); err != nil {
+			if table, err := db.UpdateTable(*tableName, *rc, *wc, *streamView); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
