@@ -252,7 +252,7 @@ func main() {
 
 	var nextKey dynago.AttributeNameValue
 	var selectedTable *dynago.TableInstance
-	var nextIterator string
+	//var nextIterato string
 
 	config := ReadConfig(CONFIG_FILE, *env)
 	selected := config.Dynago.Profile
@@ -987,12 +987,14 @@ func main() {
 			flags := args.NewFlags("streamRecords")
 
 			limit := flags.Int("limit", 0, "maximum number of items per page")
-			follow := flags.Bool("follow", false, "follow iterator")
-			wait := flags.Duration("wait", time.Second, "time to wait if --follow and no new records")
-			iter := flags.String("iter", "", "use this shard iterator")
-			itype := flags.String("type", dynago.LAST, "shard iterator type")
+			itype := flags.String("type", "last", "shard iterator type (last, latest, at, after)")
 			iseq := flags.String("seq", "", "sequence number")
 			verbose := flags.Bool("verbose", false, "display full records")
+
+			//follow := flags.Bool("follow", false, "follow iterator")
+			//wait := flags.Duration("wait", time.Second, "time to wait if --follow and no new records")
+			//iter := flags.String("iter", "", "use this shard iterator")
+			//shardId := flags.String("shard", "", "shard id")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -1010,89 +1012,75 @@ func main() {
 			}
 
 			args := flags.Args()
-
-			shardIterator := nextIterator
-			if len(*iter) > 0 {
-				shardIterator = *iter
+			if len(args) == 0 {
+				fmt.Println("missing stream id")
+				return
 			}
 
-			if len(args) > 0 {
-				streamId := get_stream(args[0])
-				stream, err := db.DescribeStream(streamId)
+			streamId := get_stream(args[0])
+			stream, err := db.DescribeStream(streamId)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			for _, shard := range stream.Shards {
+				last := len(shard.SequenceNumberRange.EndingSequenceNumber) == 0
+
+				iterator, err := db.GetShardIterator(streamId, shard.ShardId, *itype, *iseq)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
 
-				shardId := stream.Shards[0].ShardId
-				shardIteratorType := *itype
-				sequenceNumber := *iseq
-
-				iter, err := db.GetShardIterator(streamId, shardId, shardIteratorType, sequenceNumber)
-				if err != nil {
-					fmt.Println(err)
-					return
-				} else {
-					shardIterator = iter
-				}
-			}
-
-			for {
-				records, err := db.GetRecords(shardIterator, *limit)
-				if err != nil {
-					fmt.Println(err)
-					return
-				} else {
-					if *verbose {
-						pretty.PrettyPrint(records)
+				for {
+					records, err := db.GetRecords(iterator, *limit)
+					if err != nil {
+						fmt.Println(err)
+						return
 					} else {
-						for _, r := range records.Records {
-							op := r.EventName
-							values := r.Dynamodb
+						if *verbose {
+							pretty.PrettyPrint(records)
+						} else {
+							for _, r := range records.Records {
+								op := r.EventName
+								values := r.Dynamodb
+								s := values.SequenceNumber
 
-							switch values.StreamViewType {
-							case dynago.STREAM_VIEW_OLD:
-								if len(values.OldImage) > 0 {
-									fmt.Println(op, pretty.PrettyFormat(values.OldImage))
-								} else {
-									fmt.Println(op, "key", pretty.PrettyFormat(values.Keys))
+								switch values.StreamViewType {
+								case dynago.STREAM_VIEW_OLD:
+									if len(values.OldImage) > 0 {
+										fmt.Println(s, op, pretty.PrettyFormat(values.OldImage))
+									} else {
+										fmt.Println(s, op, "key", pretty.PrettyFormat(values.Keys))
+									}
+
+								case dynago.STREAM_VIEW_NEW:
+									if len(values.NewImage) > 0 {
+										fmt.Println(s, op, pretty.PrettyFormat(values.NewImage))
+									} else {
+										fmt.Println(s, op, "key", pretty.PrettyFormat(values.Keys))
+									}
+
+								case dynago.STREAM_VIEW_KEYS:
+									fmt.Println(s, op, pretty.PrettyFormat(values.Keys))
+
+								case dynago.STREAM_VIEW_ALL:
+									fmt.Println(s, op,
+										"old", pretty.PrettyFormat(values.OldImage),
+										"new", pretty.PrettyFormat(values.NewImage))
 								}
 
-							case dynago.STREAM_VIEW_NEW:
-								if len(values.NewImage) > 0 {
-									fmt.Println(op, pretty.PrettyFormat(values.NewImage))
-								} else {
-									fmt.Println(op, "key", pretty.PrettyFormat(values.Keys))
-								}
-
-							case dynago.STREAM_VIEW_KEYS:
-								fmt.Println(op, pretty.PrettyFormat(values.Keys))
-
-							case dynago.STREAM_VIEW_ALL:
-								fmt.Println(op,
-									"old",
-									pretty.PrettyFormat(values.OldImage),
-									"new",
-									pretty.PrettyFormat(values.NewImage))
 							}
 
 						}
 
+						iterator = records.NextShardIterator
 					}
 
-					nextIterator = records.NextShardIterator
-				}
-
-				if *follow && len(nextIterator) > 0 {
-					shardIterator = nextIterator
-					if len(records.Records) == 0 && *wait > 0 {
-						if !*verbose {
-							fmt.Println("waiting...")
-						}
-						time.Sleep(*wait)
+					if len(iterator) == 0 || last {
+						break
 					}
-				} else {
-					break
 				}
 			}
 
