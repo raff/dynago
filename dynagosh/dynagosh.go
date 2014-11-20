@@ -268,13 +268,13 @@ func main() {
 	db := dynago.NewDBClient()
 
 	if len(profile.URL) > 0 {
-		db.WithRegionAndURL(profile.Region, profile.URL)
+		db.SetRegionAndURL(profile.Region, profile.URL)
 	} else if len(profile.Region) > 0 {
-		db.WithRegion(profile.Region)
+		db.SetRegion(profile.Region)
 	}
 
 	if len(profile.AccessKey) > 0 {
-		db.WithCredentials(profile.AccessKey, profile.SecretKey)
+		db.SetCredentials(profile.AccessKey, profile.SecretKey)
 	}
 
 	commander := &cmd.Cmd{HistoryFile: HISTORY_FILE, Complete: CompletionFunction, EnableShell: true}
@@ -329,9 +329,18 @@ func main() {
                 describe {table} : display table configuration
                 `,
 		func(line string) (stop bool) {
-			tableName := line
-			table, err := db.DescribeTable(tableName)
-			if err != nil {
+			var tableName string
+
+			if len(line) > 0 {
+				tableName = line
+			} else if selectedTable != nil {
+				tableName = selectedTable.Name
+			} else {
+				fmt.Println("nothing to describe")
+				return
+			}
+
+			if table, err := db.DescribeTable(tableName); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
@@ -346,15 +355,23 @@ func main() {
                 use {table} : select table for queries
                 `,
 		func(line string) (stop bool) {
-			tableName := line
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				selectedTable = table
-				if *prompt {
-					commander.Prompt = "dynagosh: " + tableName + "> "
+			if len(line) > 0 {
+				tableName := line
+				table, err := db.GetTable(tableName)
+				if err != nil {
+					fmt.Println(err)
+				} else {
+					selectedTable = table
+					if *prompt {
+						commander.Prompt = "dynagosh: " + tableName + "> "
+					}
 				}
+			}
+
+			if selectedTable != nil {
+				fmt.Println("using", selectedTable.Name)
+			} else {
+				fmt.Println("no table selected")
 			}
 
 			return
@@ -440,60 +457,49 @@ func main() {
 		update {tablename} readCapacity writeCapacity streamView
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("create")
 
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			tableName := flags.String("table", "", "table name")
+			rc := flags.Int("rc", 0, "read capacity")
+			wc := flags.Int("wc", 0, "write capacity")
+			streamView := flags.String("streams", "no", "stream view (all|new|old|keys|no)")
+
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName := args[0]
-
-			rc := -1 // table.ProvisionedThroughput.ReadCapacityUnits
-			wc := -1 // table.ProvisionedThroughput.WriteCapacityUnits
-			streamView := ""
-
-			if v, err := strconv.Atoi(args[1]); err == nil {
-				rc = v
+			if len(*tableName) == 0 {
+				fmt.Println("missing table name")
+				return
 			}
 
-			if len(args) > 2 {
-				if v, err := strconv.Atoi(args[2]); err == nil {
-					wc = v
-				}
+			switch *streamView {
+			case "old":
+				*streamView = dynago.STREAM_VIEW_OLD
+			case "new":
+				*streamView = dynago.STREAM_VIEW_NEW
+			case "all":
+				*streamView = dynago.STREAM_VIEW_ALL
+			case "keys":
+				*streamView = dynago.STREAM_VIEW_KEYS
+			case "no", "":
+				*streamView = dynago.STREAM_VIEW_DISABLED
 			}
 
-			if len(args) > 3 {
-				switch args[3] {
-				case "old":
-					streamView = dynago.STREAM_VIEW_OLD
-				case "new":
-					streamView = dynago.STREAM_VIEW_NEW
-				case "all":
-					streamView = dynago.STREAM_VIEW_ALL
-				case "keys":
-					streamView = dynago.STREAM_VIEW_KEYS
-				case "no":
-					streamView = dynago.STREAM_VIEW_DISABLED
-				default:
-					streamView = args[3]
-				}
-			}
-
-			if rc <= 0 && wc <= 0 && len(streamView) == 0 {
+			if *rc <= 0 && *wc <= 0 && len(*streamView) == 0 {
 				fmt.Println("no valid value for rc, wc or streamView")
 				return
 			}
 
-			if rc <= 0 {
-				rc = 0 // table.ProvisionedThroughput.ReadCapacityUnits
+			if *rc <= 0 {
+				*rc = 0 // table.ProvisionedThroughput.ReadCapacityUnits
 			}
 
-			if wc <= 0 {
-				wc = 0 // table.ProvisionedThroughput.WriteCapacityUnits
+			if *wc <= 0 {
+				*wc = 0 // table.ProvisionedThroughput.WriteCapacityUnits
 			}
 
-			if table, err := db.UpdateTable(tableName, rc, wc, streamView); err != nil {
+			if table, err := db.UpdateTable(*tableName, *rc, *wc, *streamView); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
@@ -703,26 +709,26 @@ func main() {
 			if len(rangeCond.Operator) > 0 {
 				switch rangeCond.Operator {
 				case "NULL", "NOT_NULL":
-					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator))
+					query.SetAttrCondition(table.RangeKey().Condition(rangeCond.Operator))
 				default:
-					query = query.WithAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
+					query.SetAttrCondition(table.RangeKey().Condition(rangeCond.Operator, rangeCond.Value))
 				}
 			}
 
 			if *limit > 0 {
-				query = query.WithLimit(*limit)
+				query.SetLimit(*limit)
 			}
 
 			if *count {
-				query = query.WithSelect(dynago.SELECT_COUNT)
+				query.SetSelect(dynago.SELECT_COUNT)
 			}
 
 			if *next {
-				query = query.WithStartKey(nextKey)
+				query.SetStartKey(nextKey)
 			}
 
 			if *consumed {
-				query = query.WithConsumed(true)
+				query.SetConsumed(true)
 			}
 
 			if items, lastKey, consumed, err := query.Exec(nil); err != nil {
@@ -751,7 +757,7 @@ func main() {
 			cons := flags.Bool("consumed", false, "return consumed capacity")
 			segment := flags.Int("segment", 0, "segment number")
 			total := flags.Int("total", 0, "total segment")
-			delay := flags.String("delay", "0ms", "delay (as duration string) between scan requests")
+			delay := flags.Duration("delay", 0, "delay (as duration string) between scan requests")
 			format := flags.String("format", "pretty", "output format: pretty, compact or json")
 			all := flags.Bool("all", false, "fetch all entries")
 			next := flags.Bool("next", false, "get next page")
@@ -792,25 +798,23 @@ func main() {
 			scan := dynago.ScanTable(table)
 
 			if *segment != 0 || *total != 0 {
-				scan = scan.WithSegment(*segment, *total)
+				scan.SetSegment(*segment, *total)
 			}
 
 			if len(filters) > 0 {
-				scan = scan.WithFilters(filters)
+				scan.SetFilters(filters)
 			}
 
 			if *limit > 0 {
-				scan = scan.WithLimit(*limit)
+				scan.SetLimit(*limit)
 			}
 
 			if *cons {
-				scan = scan.WithConsumed(true)
+				scan.SetConsumed(true)
 			}
 
-			scanDelay, _ := time.ParseDuration(*delay)
-
 			if *count {
-				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, scanDelay); err != nil {
+				if totalCount, scanCount, consumed, err := scan.CountWithDelay(db, *delay); err != nil {
 					log.Println(err)
 				} else {
 					fmt.Println("count:", totalCount)
@@ -838,7 +842,7 @@ func main() {
 
 			for {
 				if *next {
-					scan = scan.WithStartKey(nextKey)
+					scan.SetStartKey(nextKey)
 				}
 
 				if *debug {
@@ -878,9 +882,9 @@ func main() {
 					}
 				}
 
-				if scanDelay > 0 {
+				if *delay > 0 {
 					log.Println(jsonString(nextKey), consumed)
-					time.Sleep(scanDelay)
+					time.Sleep(*delay)
 				}
 			}
 

@@ -330,8 +330,8 @@ func (table *TableInstance) DeleteItem(hashKey interface{}, rangeKey interface{}
 
 func (table *TableInstance) Query(hashKey interface{}) *QueryRequest {
 	query := QueryTable(table)
-	hkey := *table.Keys[HASH_KEY_TYPE]
-	query = query.WithCondition(hkey.AttributeName, EQ(EncodeAttributeValue(hkey, hashKey)))
+	hkey := *table.HashKey()
+	query = query.SetCondition(hkey.AttributeName, EQ(EncodeAttributeValue(hkey, hashKey)))
 
 	return query
 }

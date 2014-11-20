@@ -332,27 +332,27 @@ func Query(tableName string) *QueryRequest {
 	return &QueryRequest{TableName: tableName, ScanIndexForward: true, KeyConditions: make(map[string]Condition)}
 }
 
-func (req *QueryRequest) WithAttributes(attributes []string) *QueryRequest {
+func (req *QueryRequest) SetAttributes(attributes []string) *QueryRequest {
 	req.AttributesToGet = attributes
 	return req
 }
 
-func (req *QueryRequest) WithStartKey(startKey AttributeNameValue) *QueryRequest {
+func (req *QueryRequest) SetStartKey(startKey AttributeNameValue) *QueryRequest {
 	req.ExclusiveStartKey = startKey
 	return req
 }
 
-func (req *QueryRequest) WithIndex(indexName string) *QueryRequest {
+func (req *QueryRequest) SetIndex(indexName string) *QueryRequest {
 	req.IndexName = indexName
 	return req
 }
 
-func (req *QueryRequest) WithCondition(attrName string, condition Condition) *QueryRequest {
+func (req *QueryRequest) SetCondition(attrName string, condition Condition) *QueryRequest {
 	req.KeyConditions[attrName] = condition
 	return req
 }
 
-func (req *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryRequest {
+func (req *QueryRequest) SetAttrCondition(cond AttrCondition) *QueryRequest {
 	for k, v := range cond {
 		req.KeyConditions[k] = v
 	}
@@ -360,17 +360,17 @@ func (req *QueryRequest) WithAttrCondition(cond AttrCondition) *QueryRequest {
 	return req
 }
 
-func (req *QueryRequest) WithLimit(limit int) *QueryRequest {
+func (req *QueryRequest) SetLimit(limit int) *QueryRequest {
 	req.Limit = &limit
 	return req
 }
 
-func (req *QueryRequest) WithSelect(selectValue string) *QueryRequest {
+func (req *QueryRequest) SetSelect(selectValue string) *QueryRequest {
 	req.Select = selectValue
 	return req
 }
 
-func (req *QueryRequest) WithConsumed(consumed bool) *QueryRequest {
+func (req *QueryRequest) SetConsumed(consumed bool) *QueryRequest {
 	req.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
 	return req
 }
@@ -416,17 +416,17 @@ func Scan(tableName string) *ScanRequest {
 	return &ScanRequest{TableName: tableName}
 }
 
-func (scanReq *ScanRequest) WithAttributes(attributes []string) *ScanRequest {
+func (scanReq *ScanRequest) SetAttributes(attributes []string) *ScanRequest {
 	scanReq.AttributesToGet = attributes
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithStartKey(startKey AttributeNameValue) *ScanRequest {
+func (scanReq *ScanRequest) SetStartKey(startKey AttributeNameValue) *ScanRequest {
 	scanReq.ExclusiveStartKey = startKey
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithFilter(attrName string, condition Condition) *ScanRequest {
+func (scanReq *ScanRequest) SetFilter(attrName string, condition Condition) *ScanRequest {
 	if scanReq.ScanFilter == nil {
 		scanReq.ScanFilter = map[string]Condition{attrName: condition}
 	} else {
@@ -435,28 +435,28 @@ func (scanReq *ScanRequest) WithFilter(attrName string, condition Condition) *Sc
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithFilters(filters AttrCondition) *ScanRequest {
+func (scanReq *ScanRequest) SetFilters(filters AttrCondition) *ScanRequest {
 	scanReq.ScanFilter = filters
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithLimit(limit int) *ScanRequest {
+func (scanReq *ScanRequest) SetLimit(limit int) *ScanRequest {
 	scanReq.Limit = &limit
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithSegment(segment, totalSegments int) *ScanRequest {
+func (scanReq *ScanRequest) SetSegment(segment, totalSegments int) *ScanRequest {
 	scanReq.Segment = &segment
 	scanReq.TotalSegments = &totalSegments
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithSelect(selectValue string) *ScanRequest {
+func (scanReq *ScanRequest) SetSelect(selectValue string) *ScanRequest {
 	scanReq.Select = selectValue
 	return scanReq
 }
 
-func (scanReq *ScanRequest) WithConsumed(consumed bool) *ScanRequest {
+func (scanReq *ScanRequest) SetConsumed(consumed bool) *ScanRequest {
 	scanReq.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
 	return scanReq
 }
