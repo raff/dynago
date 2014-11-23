@@ -13,10 +13,11 @@ const (
 	NUMBER_SET_ATTRIBUTE = "NS"
 	BINARY_ATTRIBUTE     = "B"
 	BINARY_SET_ATTRIBUTE = "BS"
-)
 
-var (
-	BOOLEAN_VALUES = map[bool]string{true: "1", false: "0"}
+	LIST_ATTRIBUTE = "L"
+	MAP_ATTRIBUTE = "M"
+	BOOLEAN_ATTRIBUTE = "BOOL"
+	NULL_ATTRIBUTE = "NULL"
 )
 
 // Attribute values are encoded as { "type": "value" }
@@ -30,6 +31,10 @@ type DBItem map[string]AttributeValue
 
 // Encode a value according to its type
 func EncodeValue(value interface{}) AttributeValue {
+	if value == nil {
+		return AttributeValue{NULL_ATTRIBUTE: true}
+	}
+
 	switch v := value.(type) {
 	case string:
 		return AttributeValue{STRING_ATTRIBUTE: v}
@@ -38,7 +43,7 @@ func EncodeValue(value interface{}) AttributeValue {
 		return AttributeValue{STRING_SET_ATTRIBUTE: v}
 
 	case bool:
-		return AttributeValue{NUMBER_ATTRIBUTE: BOOLEAN_VALUES[v]}
+		return AttributeValue{BOOLEAN_ATTRIBUTE: v}
 
 	case uint, uint8, uint32, uint64, int, int8, int32, int64:
 		return AttributeValue{NUMBER_ATTRIBUTE: fmt.Sprintf("%d", v)}
@@ -96,6 +101,30 @@ func DecodeValue(attrValue AttributeValue) interface{} {
 				ff[i] = float32(f)
 			}
 			return ff
+
+		case BOOLEAN_ATTRIBUTE:
+			s := v.(string)
+			b, _ := strconv.ParseBool(s)
+			return b
+
+		case NULL_ATTRIBUTE:
+			return nil
+
+		case LIST_ATTRIBUTE:
+			la := v.([]AttributeValue)
+			ll := make([]interface{}, len(la))
+			for i, a := range la {
+				ll[i] = DecodeValue(a)
+			}
+			return ll
+
+		case MAP_ATTRIBUTE:
+			ma := v.(map[string]AttributeValue)
+			mm := map[string]interface{}{}
+			for k, v := range ma {
+				mm[k] = DecodeValue(v)
+			}
+			return mm
 		}
 	}
 
