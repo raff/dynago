@@ -14,10 +14,10 @@ const (
 	BINARY_ATTRIBUTE     = "B"
 	BINARY_SET_ATTRIBUTE = "BS"
 
-	LIST_ATTRIBUTE = "L"
-	MAP_ATTRIBUTE = "M"
+	LIST_ATTRIBUTE    = "L"
+	MAP_ATTRIBUTE     = "M"
 	BOOLEAN_ATTRIBUTE = "BOOL"
-	NULL_ATTRIBUTE = "NULL"
+	NULL_ATTRIBUTE    = "NULL"
 )
 
 // Attribute values are encoded as { "type": "value" }
@@ -39,33 +39,53 @@ func EncodeValue(value interface{}) AttributeValue {
 	case string:
 		return AttributeValue{STRING_ATTRIBUTE: v}
 
-	case []string:
-		return AttributeValue{STRING_SET_ATTRIBUTE: v}
-
 	case bool:
 		return AttributeValue{BOOLEAN_ATTRIBUTE: v}
 
 	case uint, uint8, uint32, uint64, int, int8, int32, int64:
 		return AttributeValue{NUMBER_ATTRIBUTE: fmt.Sprintf("%d", v)}
 
-	case float32:
+	case float32, float64:
 		return AttributeValue{NUMBER_ATTRIBUTE: fmt.Sprintf("%f", v)}
 
-	case []float32:
-		vv := make([]string, len(v))
-		for i, n := range v {
-			vv[i] = fmt.Sprintf("%f", n)
-		}
-		return AttributeValue{NUMBER_SET_ATTRIBUTE: vv}
+	/*
+		 // Go doesn't have sets (and JSON doesn't have set neither,
+		 // so we can't distinguish between an array and a set
+		 //
+			case []string:
+				return AttributeValue{STRING_SET_ATTRIBUTE: v}
 
-	case []float64:
-		vv := make([]string, len(v))
-		for i, n := range v {
-			vv[i] = fmt.Sprintf("%f", n)
+			case []float32:
+				vv := make([]string, len(v))
+				for i, n := range v {
+					vv[i] = fmt.Sprintf("%f", n)
+				}
+				return AttributeValue{NUMBER_SET_ATTRIBUTE: vv}
+
+			case []float64:
+				vv := make([]string, len(v))
+				for i, n := range v {
+					vv[i] = fmt.Sprintf("%f", n)
+				}
+				return AttributeValue{NUMBER_SET_ATTRIBUTE: vv}
+	*/
+
+	case []interface{}:
+		ll := make([]AttributeValue, len(v))
+		for i, lv := range v {
+			ll[i] = EncodeValue(lv)
 		}
-		return AttributeValue{NUMBER_SET_ATTRIBUTE: vv}
+		return AttributeValue{LIST_ATTRIBUTE: ll}
+
+	case map[string]interface{}:
+		mm := map[string]AttributeValue{}
+		for k, mv := range v {
+			mm[k] = EncodeValue(mv)
+		}
+		return AttributeValue{MAP_ATTRIBUTE: mm}
 
 	default:
+		fmt.Printf("can't encode %T %#v\n", v, v)
 		return AttributeValue{}
 	}
 }
@@ -103,26 +123,27 @@ func DecodeValue(attrValue AttributeValue) interface{} {
 			return ff
 
 		case BOOLEAN_ATTRIBUTE:
-			s := v.(string)
-			b, _ := strconv.ParseBool(s)
+			b := v.(bool)
 			return b
 
 		case NULL_ATTRIBUTE:
 			return nil
 
 		case LIST_ATTRIBUTE:
-			la := v.([]AttributeValue)
-			ll := make([]interface{}, len(la))
-			for i, a := range la {
-				ll[i] = DecodeValue(a)
+			li := v.([]interface{})
+			ll := make([]interface{}, len(li))
+			for i, v := range li {
+				lv := v.(map[string]interface{})
+				ll[i] = DecodeValue(lv)
 			}
 			return ll
 
 		case MAP_ATTRIBUTE:
-			ma := v.(map[string]AttributeValue)
+			mi := v.(map[string]interface{})
 			mm := map[string]interface{}{}
-			for k, v := range ma {
-				mm[k] = DecodeValue(v)
+			for k, v := range mi {
+				mv := v.(map[string]interface{})
+				mm[k] = DecodeValue(AttributeValue(mv))
 			}
 			return mm
 		}
