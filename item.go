@@ -76,9 +76,7 @@ type PutItemRequest struct {
 	TableName string
 	Item      Item
 
-	ConditionalExpression string `json:",omitempty"`
-	ConditionalOperator   string `json:",omitempty"`
-
+	ConditionalExpression     string             `json:",omitempty"`
 	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
 	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
 
@@ -104,16 +102,6 @@ type PutOption func(*PutItemRequest)
 func PutConditionalExpression(expr string) PutOption {
 	return func(req *PutItemRequest) {
 		req.ConditionalExpression = expr
-	}
-}
-
-func PutConditionalOperator(and bool) PutOption {
-	return func(req *PutItemRequest) {
-		if and {
-			req.ConditionalOperator = "AND"
-		} else {
-			req.ConditionalOperator = "OR"
-		}
 	}
 }
 
@@ -303,15 +291,22 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 //
 
 type QueryRequest struct {
-	TableName              string
-	AttributesToGet        []string `json:",omitempty"`
-	ScanIndexForward       bool
-	ExclusiveStartKey      AttributeNameValue   `json:",omitempty"`
-	KeyConditions          map[string]Condition `json:",omitempty"`
-	IndexName              string               `json:",omitempty"`
-	Limit                  *int                 `json:",omitempty"`
-	Select                 string               `json:",omitempty"`
-	ReturnConsumedCapacity string               `json:",omitempty"`
+	TableName        string
+	AttributesToGet  []string `json:",omitempty"`
+	ScanIndexForward bool
+
+	ExclusiveStartKey AttributeNameValue   `json:",omitempty"`
+	KeyConditions     map[string]Condition `json:",omitempty"`
+	IndexName         string               `json:",omitempty"`
+
+	FilterExpression          string             `json:",omitempty"`
+	ProjectionExpression      string             `json:",omitempty"`
+	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
+	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
+
+	Limit                  *int   `json:",omitempty"`
+	Select                 string `json:",omitempty"`
+	ReturnConsumedCapacity string `json:",omitempty"`
 
 	table *TableInstance
 }
@@ -360,6 +355,16 @@ func (req *QueryRequest) SetAttrCondition(cond AttrCondition) *QueryRequest {
 	return req
 }
 
+func (req *QueryRequest) SetFilterExpression(filter string) *QueryRequest {
+	req.FilterExpression = filter
+	return req
+}
+
+func (req *QueryRequest) SetProjectionExpression(proj string) *QueryRequest {
+	req.ProjectionExpression = proj
+	return req
+}
+
 func (req *QueryRequest) SetLimit(limit int) *QueryRequest {
 	req.Limit = &limit
 	return req
@@ -395,10 +400,15 @@ func (req *QueryRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32
 //
 
 type ScanRequest struct {
-	TableName              string
-	AttributesToGet        []string
-	ExclusiveStartKey      AttributeNameValue
-	ScanFilter             map[string]Condition
+	TableName         string
+	AttributesToGet   []string
+	ExclusiveStartKey AttributeNameValue
+
+	FilterExpression          string             `json:",omitempty"`
+	ProjectionExpression      string             `json:",omitempty"`
+	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
+	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
+
 	Limit                  *int   `json:",omitempty"`
 	Segment                *int   `json:",omitempty"`
 	TotalSegments          *int   `json:",omitempty"`
@@ -416,89 +426,85 @@ func Scan(tableName string) *ScanRequest {
 	return &ScanRequest{TableName: tableName}
 }
 
-func (scanReq *ScanRequest) SetAttributes(attributes []string) *ScanRequest {
-	scanReq.AttributesToGet = attributes
-	return scanReq
+func (req *ScanRequest) SetAttributes(attributes []string) *ScanRequest {
+	req.AttributesToGet = attributes
+	return req
 }
 
-func (scanReq *ScanRequest) SetStartKey(startKey AttributeNameValue) *ScanRequest {
-	scanReq.ExclusiveStartKey = startKey
-	return scanReq
+func (req *ScanRequest) SetStartKey(startKey AttributeNameValue) *ScanRequest {
+	req.ExclusiveStartKey = startKey
+	return req
 }
 
-func (scanReq *ScanRequest) SetFilter(attrName string, condition Condition) *ScanRequest {
-	if scanReq.ScanFilter == nil {
-		scanReq.ScanFilter = map[string]Condition{attrName: condition}
-	} else {
-		scanReq.ScanFilter[attrName] = condition
-	}
-	return scanReq
+func (req *ScanRequest) SetFilterExpression(filter string) *ScanRequest {
+	req.FilterExpression = filter
+	return req
 }
 
-func (scanReq *ScanRequest) SetFilters(filters AttrCondition) *ScanRequest {
-	scanReq.ScanFilter = filters
-	return scanReq
+func (req *ScanRequest) SetProjectionExpression(proj string) *ScanRequest {
+	req.ProjectionExpression = proj
+	return req
 }
 
-func (scanReq *ScanRequest) SetLimit(limit int) *ScanRequest {
-	scanReq.Limit = &limit
-	return scanReq
+func (req *ScanRequest) SetLimit(limit int) *ScanRequest {
+	req.Limit = &limit
+	return req
 }
 
-func (scanReq *ScanRequest) SetSegment(segment, totalSegments int) *ScanRequest {
-	scanReq.Segment = &segment
-	scanReq.TotalSegments = &totalSegments
-	return scanReq
+func (req *ScanRequest) SetSegment(segment, totalSegments int) *ScanRequest {
+	req.Segment = &segment
+	req.TotalSegments = &totalSegments
+	return req
 }
 
-func (scanReq *ScanRequest) SetSelect(selectValue string) *ScanRequest {
-	scanReq.Select = selectValue
-	return scanReq
+func (req *ScanRequest) SetSelect(selectValue string) *ScanRequest {
+	req.Select = selectValue
+	return req
 }
 
-func (scanReq *ScanRequest) SetConsumed(consumed bool) *ScanRequest {
-	scanReq.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
-	return scanReq
+func (req *ScanRequest) SetConsumed(consumed bool) *ScanRequest {
+	req.ReturnConsumedCapacity = RETURN_CONSUMED[consumed]
+	return req
 }
 
-func (scanReq *ScanRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
-	var scanRes QueryResult
+func (req *ScanRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32, error) {
+	var res QueryResult
 
-	if err := db.Query("Scan", scanReq).Decode(&scanRes); err != nil {
+	if err := db.Query("Scan", req).Decode(&res); err != nil {
 		return nil, nil, 0.0, err
 	}
 
-	return scanRes.Items, scanRes.LastEvaluatedKey, scanRes.ConsumedCapacity.CapacityUnits, nil
+	return res.Items, res.LastEvaluatedKey, res.ConsumedCapacity.CapacityUnits, nil
 }
 
-func (scanReq *ScanRequest) Count(db *DBClient) (count int, scount int, consumed float32, err error) {
-	return scanReq.CountWithDelay(db, 0)
+func (req *ScanRequest) Count(db *DBClient) (count int, scount int, consumed float32, err error) {
+	return req.CountWithDelay(db, 0)
 }
 
-func (scanReq *ScanRequest) CountWithDelay(db *DBClient, delay time.Duration) (count int, scount int, consumed float32, err error) {
-	var scanRes QueryResult
+func (req *ScanRequest) CountWithDelay(db *DBClient, delay time.Duration) (count int, scount int, consumed float32, err error) {
+	var res QueryResult
 
-	req := *scanReq
-	req.Select = SELECT_COUNT
+	creq := *req
+	creq.Select = SELECT_COUNT
 
 	for {
-		scanRes.LastEvaluatedKey = nil
+		res.LastEvaluatedKey = nil
 
-		if err = db.Query("Scan", &req).Decode(&scanRes); err != nil {
+		if err = db.Query("Scan", &creq).Decode(&res); err != nil {
 			break
 		}
 
-		count += scanRes.Count
-		scount += scanRes.ScannedCount
-		consumed += scanRes.ConsumedCapacity.CapacityUnits
+		count += res.Count
+		scount += res.ScannedCount
+		consumed += res.ConsumedCapacity.CapacityUnits
 
-		if scanRes.LastEvaluatedKey == nil {
+		if res.LastEvaluatedKey == nil {
 			break
 		}
 
-		req.ExclusiveStartKey = make(AttributeNameValue)
-		for k, v := range scanRes.LastEvaluatedKey {
-			req.ExclusiveStartKey[k] = v
+		creq.ExclusiveStartKey = make(AttributeNameValue)
+		for k, v := range res.LastEvaluatedKey {
+			creq.ExclusiveStartKey[k] = v
 		}
 
 		if delay > 0 {

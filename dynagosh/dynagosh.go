@@ -164,49 +164,6 @@ func (cond *RangeParam) IsBoolFlag() bool {
 	return cond.IsBool
 }
 
-type ScanFilter struct {
-	Op      string
-	Filters dynago.AttrCondition
-}
-
-func (filter *ScanFilter) Set(value string) error {
-	// value should be in one of the following formats
-	// name - attr:{name}, type:S, val:""
-	// name:value - attr:{name}, type:S, val:{stringvalue}
-	// name:type:value - attr:{name}, type:{type}, val:{value}
-
-	parts := strings.SplitN(value, ":", 3)
-	if len(parts) == 0 {
-		return errors.New("missing-value")
-	}
-
-	attr := parts[0]
-	typ := "S"
-	val := ""
-
-	switch len(parts) {
-	case 2:
-		val = parts[1]
-	case 3:
-		typ = parts[1]
-		val = parts[2]
-	}
-
-	log.Println("add filter", filter.Op, attr, typ, val)
-
-	switch filter.Op {
-	case "NULL", "NOT_NULL":
-		filter.Filters[attr] = dynago.MakeCondition(filter.Op, typ)
-	default:
-		filter.Filters[attr] = dynago.MakeCondition(filter.Op, typ, val)
-	}
-	return nil
-}
-
-func (filter *ScanFilter) String() string {
-	return "name:type:value"
-}
-
 type KeyDefinition dynago.AttributeDefinition
 
 func (key *KeyDefinition) Set(value string) error {
@@ -652,6 +609,8 @@ func main() {
 			count := flags.Bool("count", false, "only return item count")
 			next := flags.Bool("next", false, "get next page")
 			consumed := flags.Bool("consumed", false, "return consumed capacity")
+			filter := flags.String("filter", "", "filter expression")
+			projection := flags.String("projection", "", "projection expression")
 
 			hashKey := flags.String("hash", "", "hash-key value")
 
@@ -715,6 +674,9 @@ func main() {
 				}
 			}
 
+			query.SetFilterExpression(*filter)
+			query.SetProjectionExpression(*projection)
+
 			if *limit > 0 {
 				query.SetLimit(*limit)
 			}
@@ -762,20 +724,8 @@ func main() {
 			all := flags.Bool("all", false, "fetch all entries")
 			next := flags.Bool("next", false, "get next page")
 			start := flags.String("start", "", "start from this key")
-
-			filters := make(dynago.AttrCondition)
-
-			flags.Var(&ScanFilter{"EQ", filters}, "eq", "attr equal value")
-			flags.Var(&ScanFilter{"NE", filters}, "ne", "attr not-equal value")
-			flags.Var(&ScanFilter{"LE", filters}, "le", "attr less-or-equal value")
-			flags.Var(&ScanFilter{"LT", filters}, "lt", "attr less-than value")
-			flags.Var(&ScanFilter{"GE", filters}, "ge", "attr less-or-equal value")
-			flags.Var(&ScanFilter{"GT", filters}, "gt", "attr less-than value")
-			flags.Var(&ScanFilter{"CONTAINS", filters}, "contains", "attr contains value")
-			flags.Var(&ScanFilter{"NOT_CONTAINS", filters}, "not-contains", "attr not-contains value")
-			flags.Var(&ScanFilter{"BEGINS_WITH", filters}, "begins-with", "attr begins-with value")
-			flags.Var(&ScanFilter{"NULL", filters}, "null", "attr is null")
-			flags.Var(&ScanFilter{"NOT_NULL", filters}, "not-null", "attr is-not null")
+			filter := flags.String("filter", "", "filter expression")
+			projection := flags.String("projection", "", "projection expression")
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -797,12 +747,11 @@ func main() {
 
 			scan := dynago.ScanTable(table)
 
+			scan.SetFilterExpression(*filter)
+			scan.SetProjectionExpression(*projection)
+
 			if *segment != 0 || *total != 0 {
 				scan.SetSegment(*segment, *total)
-			}
-
-			if len(filters) > 0 {
-				scan.SetFilters(filters)
 			}
 
 			if *limit > 0 {
