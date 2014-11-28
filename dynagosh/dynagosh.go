@@ -95,9 +95,15 @@ var (
 
 	// this hold the curent list of streams
 	stream_list []string
+
+	// currently selected table
+	selected_table *dynago.TableInstance
+
+	// DynamoDB client instance
+	db = dynago.NewDBClient()
 )
 
-func get_stream(s string) string {
+func getStream(s string) string {
 	if v, err := strconv.Atoi(s); err == nil && v < len(stream_list) {
 		return stream_list[v]
 	} else {
@@ -105,17 +111,33 @@ func get_stream(s string) string {
 	}
 }
 
-func add_to_list(table string) {
+func addTable(table string) {
 	table_list = append(table_list, table)
 }
 
-func remove_from_list(table string) {
+func removeTable(table string) {
 	for i, t := range table_list {
 		if t == table {
 			table_list = append(table_list[:i], table_list[i+1:]...)
 			return
 		}
 	}
+}
+
+func getTable(name string) (table *dynago.TableInstance) {
+	table = selected_table
+
+	if len(name) > 1 {
+		if t, err := db.GetTable(name); err != nil {
+			fmt.Println(err)
+		} else {
+			table = t
+		}
+	} else if table == nil {
+		fmt.Println("no table selected")
+	}
+
+	return
 }
 
 // return list of table names that match the input pattern (table name starts with "text")
@@ -208,8 +230,6 @@ func main() {
 	flag.Parse()
 
 	var nextKey dynago.AttributeNameValue
-	var selectedTable *dynago.TableInstance
-	//var nextIterato string
 
 	config := ReadConfig(CONFIG_FILE, *env)
 	selected := config.Dynago.Profile
@@ -221,8 +241,6 @@ func main() {
 	if *debug {
 		httpclient.StartLogging(true, true)
 	}
-
-	db := dynago.NewDBClient()
 
 	if len(profile.URL) > 0 {
 		db.SetRegionAndURL(profile.Region, profile.URL)
@@ -290,8 +308,8 @@ func main() {
 
 			if len(line) > 0 {
 				tableName = line
-			} else if selectedTable != nil {
-				tableName = selectedTable.Name
+			} else if selected_table != nil {
+				tableName = selected_table.Name
 			} else {
 				fmt.Println("nothing to describe")
 				return
@@ -318,15 +336,15 @@ func main() {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					selectedTable = table
+					selected_table = table
 					if *prompt {
 						commander.Prompt = "dynagosh: " + tableName + "> "
 					}
 				}
 			}
 
-			if selectedTable != nil {
-				fmt.Println("using", selectedTable.Name)
+			if selected_table != nil {
+				fmt.Println("using", selected_table.Name)
 			} else {
 				fmt.Println("no table selected")
 			}
@@ -384,7 +402,7 @@ func main() {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
-				add_to_list(*tableName)
+				addTable(*tableName)
 			}
 
 			return
@@ -402,7 +420,7 @@ func main() {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(table)
-				remove_from_list(tableName)
+				removeTable(tableName)
 			}
 
 			return
@@ -468,7 +486,7 @@ func main() {
 
 	commander.Add(cmd.Command{"put",
 		`
-                put {tablename} {item}
+                put [tablename] {item}
                 `,
 		func(line string) (stop bool) {
 			args := args.GetArgs(line)
@@ -477,16 +495,14 @@ func main() {
 				return
 			}
 
-			tableName := args[0]
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
+			table := getTable(args[0])
+			if table == nil {
 				return
 			}
 
 			var item map[string]interface{}
 			if err := json.Unmarshal([]byte(args[1]), &item); err != nil {
-				fmt.Println("can't parse", args[1], err)
+				fmt.Printf("can't parse %q %v\n", args[1], err)
 				return
 			}
 
@@ -517,9 +533,8 @@ func main() {
 			}
 
 			tableName, args := args[0], args[1:]
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
+			table := getTable(tableName)
+			if table == nil {
 				return
 			}
 
@@ -560,9 +575,8 @@ func main() {
 			}
 
 			tableName, args := args[0], args[1:]
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
+			table := getTable(tableName)
+			if table == nil {
 				return
 			}
 
@@ -577,9 +591,12 @@ func main() {
 
 			updates := args[0]
 			var substs map[string]interface{}
-			if err := json.Unmarshal([]byte(args[1]), &substs); err != nil {
-				fmt.Println("can't parse", args[1], err)
-				return
+
+			if len(args) > 1 {
+				if err := json.Unmarshal([]byte(args[1]), &substs); err != nil {
+					fmt.Printf("can't parse %q %v\n", args[1], err)
+					return
+				}
 			}
 
 			if item, consumed, err := table.UpdateItem(
@@ -612,9 +629,8 @@ func main() {
 			}
 
 			tableName, args := args[0], args[1:]
-			table, err := db.GetTable(tableName)
-			if err != nil {
-				fmt.Println(err)
+			table := getTable(tableName)
+			if table == nil {
 				return
 			}
 
@@ -687,17 +703,8 @@ func main() {
 
 			args := flags.Args()
 
-			table := selectedTable
-
-			if len(*tableName) > 1 {
-				if t, err := db.GetTable(*tableName); err != nil {
-					fmt.Println(err)
-					return
-				} else {
-					table = t
-				}
-			} else if table == nil {
-				fmt.Println("no table selected")
+			table := getTable(*tableName)
+			if table == nil {
 				return
 			}
 
@@ -783,17 +790,8 @@ func main() {
 				return
 			}
 
-			table := selectedTable
-
-			if len(*tableName) > 1 {
-				if t, err := db.GetTable(*tableName); err != nil {
-					log.Println(err)
-					return
-				} else {
-					table = t
-				}
-			} else if table == nil {
-				fmt.Println("no table selected")
+			table := getTable(*tableName)
+			if table == nil {
 				return
 			}
 
@@ -836,7 +834,7 @@ func main() {
 				log.Println("start from", *start)
 
 				if err := json.Unmarshal([]byte(*start), &nextKey); err != nil {
-					fmt.Println("can't parse", *start, err)
+					fmt.Printf("can't parse %q %v\n", *start, err)
 					return
 				}
 			}
@@ -960,7 +958,7 @@ func main() {
 				return
 			}
 
-			streamId := get_stream(args[0])
+			streamId := getStream(args[0])
 
 			options := []dynago.DescribeStreamOption{}
 
@@ -1022,7 +1020,7 @@ func main() {
 				return
 			}
 
-			streamId := get_stream(args[0])
+			streamId := getStream(args[0])
 			stream, err := db.DescribeStream(streamId)
 			if err != nil {
 				fmt.Println(err)
