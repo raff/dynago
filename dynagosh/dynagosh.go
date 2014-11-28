@@ -549,12 +549,12 @@ func main() {
 
 	commander.Add(cmd.Command{"update",
 		`
-		update {tablename} {hashKey} [rangeKey] {update-expression}
+		update {tablename} {hashKey} [rangeKey] {update-expression} {substitution-parameters}
 		`,
 		func(line string) (stop bool) {
 			args := args.GetArgs(line)
 
-			if len(args) < 3 {
+			if len(args) < 4 {
 				fmt.Println("not enough arguments")
 				return
 			}
@@ -571,16 +571,22 @@ func main() {
 
 			// XXX: here we are forced to pass a rangeKey in order to get to "updates"
 			//      we should probably add a --rangeKey parameter or have a "splittable" single key
-			if len(args) > 1 {
+			if len(args) > 2 {
 				rangeKey, args = args[0], args[1:]
 			}
 
-			updates := strings.Join(args, " ")
+			updates := args[0]
+			var substs map[string]interface{}
+			if err := json.Unmarshal([]byte(args[1]), &substs); err != nil {
+				fmt.Println("can't parse", args[1], err)
+				return
+			}
 
 			if item, consumed, err := table.UpdateItem(
 				hashKey,
 				rangeKey,
 				updates,
+				dynago.ExpressionAttributeValues(substs),
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
 				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)

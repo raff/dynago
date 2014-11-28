@@ -41,7 +41,7 @@ type KeyValue struct {
 type Item map[string]interface{}
 
 func (pi *Item) UnmarshalJSON(data []byte) error {
-	var dbitem DBItem
+	var dbitem AttributeNameValue
 
 	if err := json.Unmarshal(data, &dbitem); err != nil {
 		return err
@@ -58,7 +58,7 @@ func (pi *Item) UnmarshalJSON(data []byte) error {
 }
 
 func (pi *Item) MarshalJSON() ([]byte, error) {
-	dbitem := DBItem{}
+	dbitem := AttributeNameValue{}
 
 	for k, v := range *pi {
 		dbitem[k] = EncodeValue(v)
@@ -118,9 +118,9 @@ func ExpressionAttributeNames(names map[string]string) ItemOption {
 	}
 }
 
-func ExpressionAttributeValues(values AttributeNameValue) ItemOption {
+func ExpressionAttributeValues(values map[string]interface{}) ItemOption {
 	return func(req *ItemRequest) {
-		req.ExpressionAttributeValues = values
+		req.ExpressionAttributeValues = EncodeItem(values)
 	}
 }
 
