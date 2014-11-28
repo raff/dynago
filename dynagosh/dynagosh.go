@@ -409,12 +409,12 @@ func main() {
 		},
 		nil})
 
-	commander.Add(cmd.Command{"update",
+	commander.Add(cmd.Command{"updateTable",
 		`
-		update {tablename} readCapacity writeCapacity streamView
+		updateTable {tablename} readCapacity writeCapacity streamView
 		`,
 		func(line string) (stop bool) {
-			flags := args.NewFlags("create")
+			flags := args.NewFlags("updateTable")
 
 			tableName := flags.String("table", "", "table name")
 			rc := flags.Int("rc", 0, "read capacity")
@@ -535,6 +535,52 @@ func main() {
 			if item, consumed, err := table.DeleteItem(
 				hashKey,
 				rangeKey,
+				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
+				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
+				fmt.Println(err)
+			} else {
+				pretty.PrettyPrint(item)
+				fmt.Println("consumed:", consumed)
+			}
+
+			return
+		},
+		nil})
+
+	commander.Add(cmd.Command{"update",
+		`
+		update {tablename} {hashKey} [rangeKey] {update-expression}
+		`,
+		func(line string) (stop bool) {
+			args := args.GetArgs(line)
+
+			if len(args) < 3 {
+				fmt.Println("not enough arguments")
+				return
+			}
+
+			tableName, args := args[0], args[1:]
+			table, err := db.GetTable(tableName)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			hashKey, args := args[0], args[1:]
+			var rangeKey interface{}
+
+			// XXX: here we are forced to pass a rangeKey in order to get to "updates"
+			//      we should probably add a --rangeKey parameter or have a "splittable" single key
+			if len(args) > 1 {
+				rangeKey, args = args[0], args[1:]
+			}
+
+			updates := strings.Join(args, " ")
+
+			if item, consumed, err := table.UpdateItem(
+				hashKey,
+				rangeKey,
+				updates,
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
 				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
@@ -1041,6 +1087,7 @@ func main() {
 		},
 		nil})
 
+	commander.Commands["modify"] = commander.Commands["updateTable"]
 	commander.Commands["dt"] = commander.Commands["describe"]
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["rm"] = commander.Commands["remove"]

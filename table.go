@@ -317,6 +317,17 @@ func (table *TableInstance) PutItem(item Item, options ...ItemOption) (*Item, fl
 	return table.DB.PutItem(table.Name, item, options...)
 }
 
+func (table *TableInstance) UpdateItem(hashKey interface{}, rangeKey interface{}, updates string, options ...ItemOption) (*Item, float32, error) {
+	hkey := &KeyValue{*table.Keys[HASH_KEY_TYPE], hashKey}
+
+	var rkey *KeyValue
+	if table.Keys[RANGE_KEY_TYPE] != nil {
+		rkey = &KeyValue{*table.Keys[RANGE_KEY_TYPE], rangeKey}
+	}
+
+	return table.DB.UpdateItem(table.Name, hkey, rkey, updates, options...)
+}
+
 func (table *TableInstance) DeleteItem(hashKey interface{}, rangeKey interface{}, options ...ItemOption) (*Item, float32, error) {
 	hkey := &KeyValue{*table.Keys[HASH_KEY_TYPE], hashKey}
 
