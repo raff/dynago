@@ -313,11 +313,11 @@ func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, a
 	return table.DB.GetItem(table.Name, hkey, rkey, attributes, consistent, consumed)
 }
 
-func (table *TableInstance) PutItem(item Item, options ...PutOption) (*Item, float32, error) {
+func (table *TableInstance) PutItem(item Item, options ...ItemOption) (*Item, float32, error) {
 	return table.DB.PutItem(table.Name, item, options...)
 }
 
-func (table *TableInstance) DeleteItem(hashKey interface{}, rangeKey interface{}, options ...DeleteOption) (*Item, float32, error) {
+func (table *TableInstance) DeleteItem(hashKey interface{}, rangeKey interface{}, options ...ItemOption) (*Item, float32, error) {
 	hkey := &KeyValue{*table.Keys[HASH_KEY_TYPE], hashKey}
 
 	var rkey *KeyValue

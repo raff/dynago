@@ -16,7 +16,7 @@ var (
 	RETURN_CONSUMED = map[bool]string{true: "TOTAL", false: "NONE"}
 
 	RETURN_TOTAL_CONSUMED = "TOTAL"
-	RETURN_IDEX_CONSUMED  = "INDEXED"
+	RETURN_INDEX_CONSUMED = "INDEXED"
 
 	RETURN_METRICS = map[bool]string{true: "SIZE", false: "NONE"}
 
@@ -69,25 +69,11 @@ func (pi *Item) MarshalJSON() ([]byte, error) {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// PutItem
+// Put/Update/Delete Item Result
 //
 
-type PutItemRequest struct {
-	TableName string
-	Item      Item
-
-	ConditionalExpression     string             `json:",omitempty"`
-	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
-	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
-
-	ReturnConsumedCapacity      string `json:",omitempty"` // INDEXED | TOTAL | NONE
-	ReturnItemCollectionMetrics string `json:",omitempty"` // SIZE | NONE
-	ReturnValues                string `json:",omitempty"` // NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
-}
-
-type PutItemResult struct {
-	Attributes Item
-
+type ItemResult struct {
+	Attributes            Item
 	ConsumedCapacity      ConsumedCapacityDescription
 	ItemCollectionMetrics ItemCollectionMetrics
 }
@@ -97,47 +83,73 @@ type ItemCollectionMetrics struct {
 	SizeEstimateRangeGB []float64
 }
 
-type PutOption func(*PutItemRequest)
+//////////////////////////////////////////////////////////////////////////////
+//
+// Put/Update/Delete Item Request
+//
 
-func PutConditionalExpression(expr string) PutOption {
-	return func(req *PutItemRequest) {
-		req.ConditionalExpression = expr
+type ItemRequest struct {
+	TableName string
+
+	Item             *Item              `json:",omitempty"` // PutItem
+	Key              AttributeNameValue `json:",omitempty"` // UpdateItem/DeleteItem
+	UpdateExpression string             `json:",omitempty"` // UpdateItem
+
+	ConditionExpression       string             `json:",omitempty"`
+	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
+	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
+
+	ReturnConsumedCapacity      string `json:",omitempty"` // INDEXED | TOTAL | NONE
+	ReturnItemCollectionMetrics string `json:",omitempty"` // SIZE | NONE
+	ReturnValues                string `json:",omitempty"` // NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
+}
+
+type ItemOption func(*ItemRequest)
+
+func ConditionExpression(expr string) ItemOption {
+	return func(req *ItemRequest) {
+		req.ConditionExpression = expr
 	}
 }
 
-func PutExpressionAttributeNames(names map[string]string) PutOption {
-	return func(req *PutItemRequest) {
+func ExpressionAttributeNames(names map[string]string) ItemOption {
+	return func(req *ItemRequest) {
 		req.ExpressionAttributeNames = names
 	}
 }
 
-func PutExpressionAttributeValues(values AttributeNameValue) PutOption {
-	return func(req *PutItemRequest) {
+func ExpressionAttributeValues(values AttributeNameValue) ItemOption {
+	return func(req *ItemRequest) {
 		req.ExpressionAttributeValues = values
 	}
 }
 
-func PutReturnConsumed(target string) PutOption {
-	return func(req *PutItemRequest) {
+func ReturnConsumed(target string) ItemOption {
+	return func(req *ItemRequest) {
 		req.ReturnConsumedCapacity = target
 	}
 }
 
-func PutReturnMetrics(ret bool) PutOption {
-	return func(req *PutItemRequest) {
+func ReturnMetrics(ret bool) ItemOption {
+	return func(req *ItemRequest) {
 		req.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
 	}
 }
 
-func PutReturnValues(target string) PutOption {
-	return func(req *PutItemRequest) {
+func ReturnValues(target string) ItemOption {
+	return func(req *ItemRequest) {
 		req.ReturnValues = target
 	}
 }
 
-func (db *DBClient) PutItem(tableName string, item Item, options ...PutOption) (*Item, float32, error) {
-	var req = PutItemRequest{TableName: tableName, Item: item}
-	var res PutItemResult
+//////////////////////////////////////////////////////////////////////////////
+//
+// PutItem
+//
+
+func (db *DBClient) PutItem(tableName string, item Item, options ...ItemOption) (*Item, float32, error) {
+	var req = ItemRequest{TableName: tableName, Item: &item}
+	var res ItemResult
 
 	for _, option := range options {
 		option(&req)
@@ -152,82 +164,41 @@ func (db *DBClient) PutItem(tableName string, item Item, options ...PutOption) (
 
 //////////////////////////////////////////////////////////////////////////////
 //
+// UpdateItem
+//
+
+func (db *DBClient) UpdateItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, updates string, options ...ItemOption) (*Item, float32, error) {
+	var req = ItemRequest{TableName: tableName, UpdateExpression: updates}
+	var res ItemResult
+
+	req.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
+	if rangeKey != nil {
+		req.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
+	}
+
+	if rangeKey != nil {
+		req.Key[rangeKey.Key.AttributeName] = EncodeAttributeValue(rangeKey.Key, rangeKey.Value)
+	}
+
+	for _, option := range options {
+		option(&req)
+	}
+
+	if err := db.Query("UpdateItem", &req).Decode(&res); err != nil {
+		return nil, 0.0, err
+	} else {
+		return &res.Attributes, res.ConsumedCapacity.CapacityUnits, err
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
 // DeleteItem
 //
 
-type DeleteItemRequest struct {
-	TableName string
-	Key       AttributeNameValue
-
-	ConditionalExpression string `json:",omitempty"`
-	ConditionalOperator   string `json:",omitempty"`
-
-	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
-	ExpressionAttributeValues AttributeNameValue `json:",omitempty"`
-
-	ReturnConsumedCapacity      string `json:",omitempty"` // INDEXED | TOTAL | NONE
-	ReturnItemCollectionMetrics string `json:",omitempty"` // SIZE | NONE
-	ReturnValues                string `json:",omitempty"` // NONE | ALL_OLD | UPDATED_OLD | ALL_NEW | UPDATED_NEW
-}
-
-type DeleteItemResult struct {
-	Attributes Item
-
-	ConsumedCapacity      ConsumedCapacityDescription
-	ItemCollectionMetrics ItemCollectionMetrics
-}
-
-type DeleteOption func(*DeleteItemRequest)
-
-func DeleteConditionalExpression(expr string) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ConditionalExpression = expr
-	}
-}
-
-func DeleteConditionalOperator(and bool) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		if and {
-			req.ConditionalOperator = "AND"
-		} else {
-			req.ConditionalOperator = "OR"
-		}
-	}
-}
-
-func DeleteExpressionAttributeNames(names map[string]string) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ExpressionAttributeNames = names
-	}
-}
-
-func DeleteExpressionAttributeValues(values AttributeNameValue) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ExpressionAttributeValues = values
-	}
-}
-
-func DeleteReturnConsumed(target string) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ReturnConsumedCapacity = target
-	}
-}
-
-func DeleteReturnMetrics(ret bool) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ReturnItemCollectionMetrics = RETURN_METRICS[ret]
-	}
-}
-
-func DeleteReturnValues(target string) DeleteOption {
-	return func(req *DeleteItemRequest) {
-		req.ReturnValues = target
-	}
-}
-
-func (db *DBClient) DeleteItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, options ...DeleteOption) (*Item, float32, error) {
-	var req = DeleteItemRequest{TableName: tableName}
-	var res DeleteItemResult
+func (db *DBClient) DeleteItem(tableName string, hashKey *KeyValue, rangeKey *KeyValue, options ...ItemOption) (*Item, float32, error) {
+	var req = ItemRequest{TableName: tableName}
+	var res ItemResult
 
 	req.Key = EncodeAttribute(hashKey.Key, hashKey.Value)
 	if rangeKey != nil {

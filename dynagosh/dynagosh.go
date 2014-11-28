@@ -391,9 +391,9 @@ func main() {
 		},
 		nil})
 
-	commander.Add(cmd.Command{"delete",
+	commander.Add(cmd.Command{"drop",
 		`
-                delete {table} : delete table
+                drop {table} : delete table
                 `,
 		func(line string) (stop bool) {
 			tableName := line
@@ -492,8 +492,8 @@ func main() {
 
 			if item, consumed, err := table.PutItem(
 				dynago.Item(item),
-				dynago.PutReturnValues(dynago.RETURN_ALL_OLD),
-				dynago.PutReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
+				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
+				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(item)
@@ -535,8 +535,8 @@ func main() {
 			if item, consumed, err := table.DeleteItem(
 				hashKey,
 				rangeKey,
-				dynago.DeleteReturnValues(dynago.RETURN_ALL_OLD),
-				dynago.DeleteReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
+				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
+				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
 			} else {
 				pretty.PrettyPrint(item)
@@ -1042,7 +1042,6 @@ func main() {
 		nil})
 
 	commander.Commands["dt"] = commander.Commands["describe"]
-	commander.Commands["drop"] = commander.Commands["delete"]
 	commander.Commands["ls"] = commander.Commands["list"]
 	commander.Commands["rm"] = commander.Commands["remove"]
 	commander.Commands["lss"] = commander.Commands["listStreams"]
