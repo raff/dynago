@@ -486,22 +486,30 @@ func main() {
 
 	commander.Add(cmd.Command{"put",
 		`
-                put [tablename] {item}
+                put [--table tablename] {item}
                 `,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			flags := args.NewFlags("put")
+			tableName := flags.String("table", "", "table name")
+
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			table := getTable(args[0])
+			args := flags.Args()
+
+			if len(args) != 1 {
+				fmt.Println("one parameter (javascript object) required")
+				return
+			}
+
+			table := getTable(*tableName)
 			if table == nil {
 				return
 			}
 
 			var item map[string]interface{}
-			if err := json.Unmarshal([]byte(args[1]), &item); err != nil {
+			if err := json.Unmarshal([]byte(args[0]), &item); err != nil {
 				fmt.Printf("can't parse %q %v\n", args[1], err)
 				return
 			}
