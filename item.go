@@ -224,9 +224,9 @@ func (db *DBClient) DeleteItem(tableName string, hashKey *KeyValue, rangeKey *Ke
 type GetItemRequest struct {
 	TableName              string
 	Key                    AttributeNameValue
-	AttributesToGet        []string
+	AttributesToGet        []string `json:",omitempty"`
 	ConsistentRead         bool
-	ReturnConsumedCapacity string
+	ReturnConsumedCapacity string `json:",omitempty"`
 }
 
 type GetItemResult struct {
