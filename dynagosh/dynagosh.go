@@ -486,7 +486,7 @@ func main() {
 
 	commander.Add(cmd.Command{"put",
 		`
-                put [--table tablename] {item}
+                put [--table=tablename] {item}
                 `,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("put")
@@ -530,34 +530,40 @@ func main() {
 
 	commander.Add(cmd.Command{"remove",
 		`
-		remove {tablename} {hashKey} [rangeKey]
+		remove [--table=tablename] --hash=hashKey [--range=rangeKey]
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("remove")
+			tableName := flags.String("table", "", "table name")
+			hashKey := flags.String("hash", "", "hash key")
+			rangeKey := flags.String("range", "", "range key")
 
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName, args := args[0], args[1:]
-			table := getTable(tableName)
+			table := getTable(*tableName)
 			if table == nil {
 				return
 			}
 
-			hashKey, args := args[0], args[1:]
-			var rangeKey interface{}
+			if len(*hashKey) == 0 {
+				fmt.Println("hash key is required")
+				return
+			}
 
-			// XXX: here we are forced to pass a rangeKey in order to get to "attributes"
-			//      we should probably add a --rangeKey parameter or have a "splittable" single key
-			if len(args) > 0 {
-				rangeKey, args = args[0], args[1:]
+			if table.HashRange() {
+				if len(*rangeKey) == 0 {
+					fmt.Println("range key is required")
+					return
+				}
+			} else {
+				*rangeKey = ""
 			}
 
 			if item, consumed, err := table.DeleteItem(
-				hashKey,
-				rangeKey,
+				*hashKey,
+				*rangeKey,
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
 				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
@@ -572,30 +578,38 @@ func main() {
 
 	commander.Add(cmd.Command{"update",
 		`
-		update {tablename} {hashKey} [rangeKey] {update-expression} {substitution-parameters}
+		update [--table=tablename] --hash=hashKey [--range=rangeKey] {update-expression} {substitution-parameters}
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("remove")
+			tableName := flags.String("table", "", "table name")
+			hashKey := flags.String("hash", "", "hash key")
+			rangeKey := flags.String("range", "", "range key")
 
-			if len(args) < 4 {
-				fmt.Println("not enough arguments")
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName, args := args[0], args[1:]
-			table := getTable(tableName)
+			table := getTable(*tableName)
 			if table == nil {
 				return
 			}
 
-			hashKey, args := args[0], args[1:]
-			var rangeKey interface{}
-
-			// XXX: here we are forced to pass a rangeKey in order to get to "updates"
-			//      we should probably add a --rangeKey parameter or have a "splittable" single key
-			if len(args) > 2 {
-				rangeKey, args = args[0], args[1:]
+			if len(*hashKey) == 0 {
+				fmt.Println("hash key is required")
+				return
 			}
+
+			if table.HashRange() {
+				if len(*rangeKey) == 0 {
+					fmt.Println("range key is required")
+					return
+				}
+			} else {
+				*rangeKey = ""
+			}
+
+			args := flags.Args()
 
 			updates := args[0]
 			var substs map[string]interface{}
@@ -608,8 +622,8 @@ func main() {
 			}
 
 			if item, consumed, err := table.UpdateItem(
-				hashKey,
-				rangeKey,
+				*hashKey,
+				*rangeKey,
 				updates,
 				dynago.ExpressionAttributeValues(substs),
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
@@ -626,38 +640,40 @@ func main() {
 
 	commander.Add(cmd.Command{"get",
 		`
-		get {tablename} {hashKey} [rangeKey] [attributes]
+		get [--table=tablename] --hash=hashKey [--range=rangeKey] [attributes]
 		`,
 		func(line string) (stop bool) {
-			args := args.GetArgs(line)
+			flags := args.NewFlags("remove")
+			tableName := flags.String("table", "", "table name")
+			hashKey := flags.String("hash", "", "hash key")
+			rangeKey := flags.String("range", "", "range key")
 
-			if len(args) < 2 {
-				fmt.Println("not enough arguments")
+			if err := args.ParseFlags(flags, line); err != nil {
 				return
 			}
 
-			tableName, args := args[0], args[1:]
-			table := getTable(tableName)
+			table := getTable(*tableName)
 			if table == nil {
 				return
 			}
 
-			hashKey, args := args[0], args[1:]
-			var rangeKey interface{}
-
-			// XXX: here we are forced to pass a rangeKey in order to get to "attributes"
-			//      we should probably add a --rangeKey parameter or have a "splittable" single key
-			if len(args) > 0 {
-				rangeKey, args = args[0], args[1:]
+			if len(*hashKey) == 0 {
+				fmt.Println("hash key is required")
+				return
 			}
 
-			var attributes []string
-
-			if len(args) > 0 {
-				attributes = args
+			if table.HashRange() {
+				if len(*rangeKey) == 0 {
+					fmt.Println("range key is required")
+					return
+				}
+			} else {
+				*rangeKey = ""
 			}
 
-			if item, consumed, err := table.GetItem(hashKey, rangeKey, attributes, false, true); err != nil {
+			attributes := flags.Args()
+
+			if item, consumed, err := table.GetItem(*hashKey, *rangeKey, attributes, false, true); err != nil {
 				fmt.Println(err)
 			} else if len(attributes) > 0 {
 				for _, n := range attributes {
