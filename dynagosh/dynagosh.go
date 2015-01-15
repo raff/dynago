@@ -510,7 +510,7 @@ func main() {
 
 			var item map[string]interface{}
 			if err := json.Unmarshal([]byte(args[0]), &item); err != nil {
-				fmt.Printf("can't parse %q %v\n", args[1], err)
+				fmt.Printf("can't parse %q %v\n", args[0], err)
 				return
 			}
 
@@ -807,8 +807,10 @@ func main() {
 			all := flags.Bool("all", false, "fetch all entries")
 			next := flags.Bool("next", false, "get next page")
 			start := flags.String("start", "", "start from this key")
-			filter := flags.String("filter", "", "filter expression")
 			projection := flags.String("projection", "", "projection expression")
+			filter := flags.String("filter", "", "filter expression")
+			names := flags.String("names", "", `attribute names (json: {"x.y.x": "#n"}`)
+			values := flags.String("values", "", `expression values (json: {":name": value})`)
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -823,6 +825,26 @@ func main() {
 
 			scan.SetFilterExpression(*filter)
 			scan.SetProjectionExpression(*projection)
+
+			if len(*names) > 0 {
+				var nlist map[string]string
+				if err := json.Unmarshal([]byte(*names), &nlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *names, err)
+					return
+				}
+
+				scan.SetAttributeNames(nlist)
+			}
+
+			if len(*values) > 0 {
+				var vlist map[string]interface{}
+				if err := json.Unmarshal([]byte(*values), &vlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *values, err)
+					return
+				}
+
+				scan.SetAttributeValues(vlist)
+			}
 
 			if *segment != 0 || *total != 0 {
 				scan.SetSegment(*segment, *total)

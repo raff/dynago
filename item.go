@@ -371,8 +371,8 @@ func (req *QueryRequest) Exec(db *DBClient) ([]Item, AttributeNameValue, float32
 //
 
 type ScanRequest struct {
-	TableName         string
-	AttributesToGet   []string
+	TableName string
+	//AttributesToGet   []string    // use ProjectionExpression instead
 	ExclusiveStartKey AttributeNameValue
 
 	FilterExpression          string             `json:",omitempty"`
@@ -397,11 +397,6 @@ func Scan(tableName string) *ScanRequest {
 	return &ScanRequest{TableName: tableName}
 }
 
-func (req *ScanRequest) SetAttributes(attributes []string) *ScanRequest {
-	req.AttributesToGet = attributes
-	return req
-}
-
 func (req *ScanRequest) SetStartKey(startKey AttributeNameValue) *ScanRequest {
 	req.ExclusiveStartKey = startKey
 	return req
@@ -409,6 +404,16 @@ func (req *ScanRequest) SetStartKey(startKey AttributeNameValue) *ScanRequest {
 
 func (req *ScanRequest) SetFilterExpression(filter string) *ScanRequest {
 	req.FilterExpression = filter
+	return req
+}
+
+func (req *ScanRequest) SetAttributeNames(names map[string]string) *ScanRequest {
+	req.ExpressionAttributeNames = names
+	return req
+}
+
+func (req *ScanRequest) SetAttributeValues(values map[string]interface{}) *ScanRequest {
+	req.ExpressionAttributeValues = EncodeItem(values)
 	return req
 }
 

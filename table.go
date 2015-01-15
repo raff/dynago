@@ -305,7 +305,7 @@ func (table *TableDescription) getAttribute(name string) *AttributeDefinition {
 //
 // HashRange returns true if this table requires hash and range key
 func (table *TableInstance) HashRange() bool {
-    return table.Keys[RANGE_KEY_TYPE] != nil
+	return table.Keys[RANGE_KEY_TYPE] != nil
 }
 
 func (table *TableInstance) GetItem(hashKey interface{}, rangeKey interface{}, attributes []string, consistent bool, consumed bool) (map[string]interface{}, float32, error) {
