@@ -804,7 +804,7 @@ func main() {
 			total := flags.Int("total", 0, "total segment")
 			delay := flags.Duration("delay", 0, "delay (as duration string) between scan requests")
 			format := flags.String("format", "pretty", "output format: pretty, compact or json")
-			all := flags.Bool("all", false, "fetch all entries")
+			max := flags.Int("max", 0, "maximum number of items to fetch - 0: one page, -1: all items")
 			next := flags.Bool("next", false, "get next page")
 			start := flags.String("start", "", "start from this key")
 			projection := flags.String("projection", "", "projection expression")
@@ -872,18 +872,22 @@ func main() {
 				return
 			}
 
-			if *all {
+			if *max != 0 { // if fetching multiple pages
 				*next = true
 			}
 
 			if len(*start) > 0 {
-				log.Println("start from", *start)
+				if *debug {
+					log.Println("start from", *start)
+				}
 
 				if err := json.Unmarshal([]byte(*start), &nextKey); err != nil {
 					fmt.Printf("can't parse %q %v\n", *start, err)
 					return
 				}
 			}
+
+                        remaining := *max
 
 			for {
 				if *next {
@@ -905,7 +909,7 @@ func main() {
 					if *format == "compact" {
 						p := &pretty.Pretty{Indent: "", Out: os.Stdout, NilString: "null"}
 						for _, i := range items {
-							p.Print(i)
+							p.Println(i)
 						}
 					} else if *format == "json" {
 						for _, i := range items {
@@ -920,15 +924,26 @@ func main() {
 						log.Println("consumed:", consumed)
 					}
 
+                                        if remaining > 0 {
+                                            if len(items) > remaining {
+                                                remaining = 0
+                                            } else {
+                                                remaining -= len(items)
+                                            }
+                                        }
+
 					nextKey = lastKey
 
-					if (!*all) || len(nextKey) == 0 {
+					if (remaining == 0) || len(nextKey) == 0 {
 						break
 					}
 				}
 
 				if *delay > 0 {
-					log.Println(jsonString(nextKey), consumed)
+					if *debug {
+						log.Println(jsonString(nextKey), consumed)
+					}
+
 					time.Sleep(*delay)
 				}
 			}
