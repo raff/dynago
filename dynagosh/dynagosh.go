@@ -211,11 +211,13 @@ func jsonString(v interface{}) string {
 }
 
 func networkError(err error) bool {
-	if _, ok := err.(*net.OpError); ok {
+	if e, ok := err.(*net.OpError); ok {
+		log.Println(e)
 		return true
 	}
 
-	if _, ok := err.(*url.Error); ok {
+	if e, ok := err.(*url.Error); ok {
+		log.Println(e)
 		return true
 	}
 
@@ -887,7 +889,8 @@ func main() {
 				}
 			}
 
-                        remaining := *max
+			remaining := *max
+			errors := 0
 
 			for {
 				if *next {
@@ -904,8 +907,15 @@ func main() {
 
 					if !networkError(err) {
 						break
+					} else {
+						errors += 1
+						if errors > 10 {
+							break
+						}
 					}
 				} else {
+					errors = 0
+
 					if *format == "compact" {
 						p := &pretty.Pretty{Indent: "", Out: os.Stdout, NilString: "null"}
 						for _, i := range items {
@@ -924,13 +934,13 @@ func main() {
 						log.Println("consumed:", consumed)
 					}
 
-                                        if remaining > 0 {
-                                            if len(items) > remaining {
-                                                remaining = 0
-                                            } else {
-                                                remaining -= len(items)
-                                            }
-                                        }
+					if remaining > 0 {
+						if len(items) > remaining {
+							remaining = 0
+						} else {
+							remaining -= len(items)
+						}
+					}
 
 					nextKey = lastKey
 
