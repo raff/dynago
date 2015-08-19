@@ -6,11 +6,11 @@ package main
 import (
 	"github.com/raff/dynago"
 
-	"code.google.com/p/gcfg"
 	"github.com/gobs/args"
 	"github.com/gobs/cmd"
 	"github.com/gobs/httpclient"
 	"github.com/gobs/pretty"
+	"gopkg.in/gcfg.v1"
 
 	"encoding/json"
 	"errors"
@@ -186,23 +186,29 @@ func (cond *RangeParam) IsBoolFlag() bool {
 	return cond.IsBool
 }
 
-type KeyDefinition dynago.AttributeDefinition
+type AttrDefinitions struct {
+	attrs []dynago.AttributeDefinition
+}
 
-func (key *KeyDefinition) Set(value string) error {
-	parts := strings.SplitN(value, ":", 2)
+func (ad *AttrDefinitions) Set(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		parts := strings.SplitN(v, ":", 2)
+		attr := dynago.AttributeDefinition{AttributeName: parts[0]}
 
-	key.AttributeName = parts[0]
-	if len(parts) > 1 {
-		key.AttributeType = parts[1]
-	} else {
-		key.AttributeType = dynago.STRING_ATTRIBUTE
+		if len(parts) > 1 {
+			attr.AttributeType = parts[1]
+		} else {
+			attr.AttributeType = dynago.STRING_ATTRIBUTE
+		}
+
+		ad.attrs = append(ad.attrs, attr)
 	}
 
 	return nil
 }
 
-func (key *KeyDefinition) String() string {
-	return "name:type"
+func (ad *AttrDefinitions) String() string {
+	return "name:type,name:type"
 }
 
 func jsonString(v interface{}) string {
@@ -357,19 +363,22 @@ func main() {
 
 	commander.Add(cmd.Command{"create",
 		`
-		create --table=name --hash=name:type [--range=name:type] [--rc=readCapacity] [--wc=writeCapacity] [--streams=streamView]
+		create --table=name --hash=name:type [--range=name:type] [--attrs=name:type,name:type] [--rc=readCapacity] [--wc=writeCapacity] [--streams=streamView]
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("create")
 
 			tableName := flags.String("table", "", "table name")
+			hashKey := flags.String("hash", "", "hash key name")
+			rangeKey := flags.String("range", "", "range key name")
 			rc := flags.Int("rc", 1, "read capacity")
 			wc := flags.Int("wc", 1, "write capacity")
 			streamView := flags.String("streams", "no", "stream view (all|new|old|keys|no)")
 
-			var hashKey, rangeKey KeyDefinition
-			flags.Var(&hashKey, "hash", "hash key")
-			flags.Var(&rangeKey, "range", "range key")
+			attributes := AttrDefinitions{attrs: []dynago.AttributeDefinition{}}
+			flags.Var(&attributes, "attrs", "attributes definition")
+
+			keys := []string{}
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -380,9 +389,15 @@ func main() {
 				return
 			}
 
-			if len(hashKey.AttributeName) == 0 {
+			if len(*hashKey) == 0 {
 				fmt.Println("missing hash key")
 				return
+			}
+
+			keys = append(keys, *hashKey)
+
+			if len(*rangeKey) == 0 {
+				keys = append(keys, *rangeKey)
 			}
 
 			switch *streamView {
@@ -399,7 +414,8 @@ func main() {
 			}
 
 			if table, err := db.CreateTable(*tableName,
-				dynago.AttributeDefinition(hashKey), dynago.AttributeDefinition(rangeKey),
+				attributes.attrs,
+				keys,
 				*rc, *wc, *streamView); err != nil {
 				fmt.Println(err)
 			} else {
@@ -488,11 +504,14 @@ func main() {
 
 	commander.Add(cmd.Command{"put",
 		`
-                put [--table=tablename] {item}
+                put [--table=tablename] [--condition={condition-expression} [--names={expression-names}] [--values={expression-values}]] {item}
                 `,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("put")
 			tableName := flags.String("table", "", "table name")
+			condition := flags.String("condition", "", "condition expression")
+			names := flags.String("names", "", `attribute names (json: {"x.y.x": "#n"}`)
+			values := flags.String("values", "", `expression values (json: {":name": value})`)
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -511,6 +530,23 @@ func main() {
 			}
 
 			var item map[string]interface{}
+			var nlist map[string]string
+			var vlist map[string]interface{}
+
+			if len(*names) > 0 {
+				if err := json.Unmarshal([]byte(*names), &nlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *names, err)
+					return
+				}
+			}
+
+			if len(*values) > 0 {
+				if err := json.Unmarshal([]byte(*values), &vlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *values, err)
+					return
+				}
+			}
+
 			if err := json.Unmarshal([]byte(args[0]), &item); err != nil {
 				fmt.Printf("can't parse %q %v\n", args[0], err)
 				return
@@ -518,6 +554,9 @@ func main() {
 
 			if item, consumed, err := table.PutItem(
 				dynago.Item(item),
+				dynago.ConditionExpression(*condition),
+				dynago.ExpressionAttributeNames(nlist),
+				dynago.ExpressionAttributeValues(vlist),
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
 				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
@@ -580,13 +619,16 @@ func main() {
 
 	commander.Add(cmd.Command{"update",
 		`
-		update [--table=tablename] --hash=hashKey [--range=rangeKey] {update-expression} {substitution-parameters}
+		update [--table=tablename] --hash=hashKey [--range=rangeKey] [--condition={condition-expression} [--names={expression-names}]] [--values={expression-values}] {update-expression} 
 		`,
 		func(line string) (stop bool) {
 			flags := args.NewFlags("remove")
 			tableName := flags.String("table", "", "table name")
 			hashKey := flags.String("hash", "", "hash key")
 			rangeKey := flags.String("range", "", "range key")
+			condition := flags.String("condition", "", "condition expression")
+			names := flags.String("names", "", `attribute names (json: {"x.y.x": "#n"}`)
+			values := flags.String("values", "", `expression values (json: {":name": value})`)
 
 			if err := args.ParseFlags(flags, line); err != nil {
 				return
@@ -611,23 +653,34 @@ func main() {
 				*rangeKey = ""
 			}
 
-			args := flags.Args()
+			var nlist map[string]string
+			var vlist map[string]interface{}
 
-			updates := args[0]
-			var substs map[string]interface{}
-
-			if len(args) > 1 {
-				if err := json.Unmarshal([]byte(args[1]), &substs); err != nil {
-					fmt.Printf("can't parse %q %v\n", args[1], err)
+			if len(*names) > 0 {
+				if err := json.Unmarshal([]byte(*names), &nlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *names, err)
 					return
 				}
 			}
+
+			if len(*values) > 0 {
+				if err := json.Unmarshal([]byte(*values), &vlist); err != nil {
+					fmt.Printf("can't parse %q %v\n", *values, err)
+					return
+				}
+			}
+
+			args := flags.Args()
+
+			updates := args[0]
 
 			if item, consumed, err := table.UpdateItem(
 				*hashKey,
 				*rangeKey,
 				updates,
-				dynago.ExpressionAttributeValues(substs),
+				dynago.ConditionExpression(*condition),
+				dynago.ExpressionAttributeNames(nlist),
+				dynago.ExpressionAttributeValues(vlist),
 				dynago.ReturnValues(dynago.RETURN_ALL_OLD),
 				dynago.ReturnConsumed(dynago.RETURN_TOTAL_CONSUMED)); err != nil {
 				fmt.Println(err)
