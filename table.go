@@ -2,6 +2,7 @@ package dynago
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -20,6 +21,11 @@ const (
 	STREAM_VIEW_KEYS = "KEYS_ONLY"
 
 	STREAM_VIEW_DISABLED = "NO" // this is NOT a real value, it tells the API to disable streams for the table
+)
+
+var (
+	ERR_MISSING_KEY   = errors.New("hash-key required")
+	ERR_TOO_MANY_KEYS = errors.New("too many keys")
 )
 
 // EpochTime is like Time, but unmarshal from a number (seconds since Unix epoch) instead of a formatted string
@@ -167,20 +173,25 @@ type CreateTableResult struct {
 	TableDescription TableDescription
 }
 
-func (db *DBClient) CreateTable(tableName string, hashKey AttributeDefinition, rangeKey AttributeDefinition, rc, wc int, streamView string) (*TableDescription, error) {
+func (db *DBClient) CreateTable(tableName string, attributes []AttributeDefinition, keys []string, rc, wc int, streamView string) (*TableDescription, error) {
 	createReq := CreateTableRequest{
 		TableName:             tableName,
 		ProvisionedThroughput: ProvisionedThroughputRequest{rc, wc},
 	}
 
-	attrs := []AttributeDefinition{hashKey}
-	schema := []KeySchemaElement{KeySchemaElement{hashKey.AttributeName, HASH_KEY_TYPE}}
-	if len(rangeKey.AttributeName) > 0 {
-		attrs = append(attrs, rangeKey)
-		schema = append(schema, KeySchemaElement{rangeKey.AttributeName, RANGE_KEY_TYPE})
+	if len(keys) < 1 {
+		return nil, ERR_MISSING_KEY
+	}
+	if len(keys) > 2 {
+		return nil, ERR_TOO_MANY_KEYS
 	}
 
-	createReq.AttributeDefinitions = attrs
+	schema := []KeySchemaElement{KeySchemaElement{keys[0], HASH_KEY_TYPE}}
+	if len(keys) > 1 {
+		schema = append(schema, KeySchemaElement{keys[1], RANGE_KEY_TYPE})
+	}
+
+	createReq.AttributeDefinitions = attributes
 	createReq.KeySchema = schema
 
 	if streamView == STREAM_VIEW_DISABLED {
