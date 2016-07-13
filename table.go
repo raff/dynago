@@ -213,6 +213,22 @@ func (db *DBClient) CreateTable(tableName string, attributes []AttributeDefiniti
 	return &createRes.TableDescription, nil
 }
 
+func (db *DBClient) CreateTableInstance(tableName string, attributes []AttributeDefinition, keys []string, rc, wc int, streamView string) (*TableInstance, error) {
+	desc, err := db.CreateTable(tableName, attributes, keys, rc, wc, streamView)
+	if err != nil {
+		return nil, err
+	}
+
+	table := TableInstance{DB: db, Name: desc.TableName, Keys: map[string]*AttributeDefinition{}}
+
+	for _, ks := range desc.KeySchema {
+		table.Keys[ks.KeyType] = desc.getAttribute(ks.AttributeName)
+
+	}
+
+	return &table, nil
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // UpdateTable
