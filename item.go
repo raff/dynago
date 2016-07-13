@@ -345,6 +345,16 @@ func (req *QueryRequest) SetProjectionExpression(proj string) *QueryRequest {
 	return req
 }
 
+func (req *QueryRequest) SetAttributeNames(names map[string]string) *QueryRequest {
+	req.ExpressionAttributeNames = names
+	return req
+}
+
+func (req *QueryRequest) SetAttributeValues(values map[string]interface{}) *QueryRequest {
+	req.ExpressionAttributeValues = EncodeItem(values)
+	return req
+}
+
 func (req *QueryRequest) SetLimit(limit int) *QueryRequest {
 	req.Limit = &limit
 	return req
