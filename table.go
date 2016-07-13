@@ -21,11 +21,14 @@ const (
 	STREAM_VIEW_KEYS = "KEYS_ONLY"
 
 	STREAM_VIEW_DISABLED = "NO" // this is NOT a real value, it tells the API to disable streams for the table
+
+	errorNotFound = "ResourceNotFoundException"
 )
 
 var (
 	ERR_MISSING_KEY   = errors.New("hash-key required")
 	ERR_TOO_MANY_KEYS = errors.New("too many keys")
+	ERR_NOT_FOUND     = errors.New(errorNotFound)
 )
 
 // EpochTime is like Time, but unmarshal from a number (seconds since Unix epoch) instead of a formatted string
@@ -194,7 +197,7 @@ func (db *DBClient) CreateTable(tableName string, attributes []AttributeDefiniti
 	createReq.AttributeDefinitions = attributes
 	createReq.KeySchema = schema
 
-	if streamView == STREAM_VIEW_DISABLED {
+	if streamView == STREAM_VIEW_DISABLED || streamView == "" {
 		createReq.StreamSpecification.StreamEnabled = false
 	} else if len(streamView) > 0 {
 		createReq.StreamSpecification.StreamEnabled = true
@@ -289,6 +292,9 @@ type TableInstance struct {
 func (db *DBClient) GetTable(tableName string) (*TableInstance, error) {
 
 	desc, err := db.DescribeTable(tableName)
+	if isDBError(err, errorNotFound) {
+		return nil, ERR_NOT_FOUND
+	}
 	if err != nil {
 		return nil, err
 	}

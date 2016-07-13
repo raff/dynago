@@ -86,3 +86,10 @@ func (db *DBClient) SetCredentials(accessKey, secretKey string) *DBClient {
 func (db *DBClient) Query(action string, v interface{}) dydb.Decoder {
 	return db.DB.RetryQuery(action, v, RETRY_COUNT)
 }
+
+//
+// Check if the error passed is of the specified type
+//
+func isDBError(err error, name string) bool {
+	return dydb.IsException(err, name)
+}
