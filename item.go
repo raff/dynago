@@ -263,13 +263,14 @@ func (db *DBClient) GetItem(tableName string, hashKey *KeyValue, rangeKey *KeyVa
 
 type QueryRequest struct {
 	TableName        string
-	AttributesToGet  []string `json:",omitempty"`
+	AttributesToGet  []string `json:",omitempty"` // deprecated
 	ScanIndexForward bool
 
 	ExclusiveStartKey AttributeNameValue   `json:",omitempty"`
-	KeyConditions     map[string]Condition `json:",omitempty"`
+	KeyConditions     map[string]Condition `json:",omitempty"` // deprecated
 	IndexName         string               `json:",omitempty"`
 
+	KeyConditionExpression    string             `json:",omitempty"`
 	FilterExpression          string             `json:",omitempty"`
 	ProjectionExpression      string             `json:",omitempty"`
 	ExpressionAttributeNames  map[string]string  `json:",omitempty"`
@@ -291,13 +292,14 @@ type QueryResult struct {
 }
 
 func QueryTable(table *TableInstance) *QueryRequest {
-	return &QueryRequest{TableName: table.Name, ScanIndexForward: true, KeyConditions: make(map[string]Condition), table: table}
+	return &QueryRequest{TableName: table.Name, ScanIndexForward: true, table: table}
 }
 
 func Query(tableName string) *QueryRequest {
-	return &QueryRequest{TableName: tableName, ScanIndexForward: true, KeyConditions: make(map[string]Condition)}
+	return &QueryRequest{TableName: tableName, ScanIndexForward: true}
 }
 
+// deprecated
 func (req *QueryRequest) SetAttributes(attributes []string) *QueryRequest {
 	req.AttributesToGet = attributes
 	return req
@@ -313,16 +315,23 @@ func (req *QueryRequest) SetIndex(indexName string) *QueryRequest {
 	return req
 }
 
+// deprecated
 func (req *QueryRequest) SetCondition(attrName string, condition Condition) *QueryRequest {
 	req.KeyConditions[attrName] = condition
 	return req
 }
 
+// deprecated
 func (req *QueryRequest) SetAttrCondition(cond AttrCondition) *QueryRequest {
 	for k, v := range cond {
 		req.KeyConditions[k] = v
 	}
 
+	return req
+}
+
+func (req *QueryRequest) SetConditionExpression(cond string) *QueryRequest {
+	req.KeyConditionExpression = cond
 	return req
 }
 

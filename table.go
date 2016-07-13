@@ -315,6 +315,7 @@ func (table *TableDescription) getAttribute(name string) *AttributeDefinition {
 
 //
 // HashRange returns true if this table requires hash and range key
+//
 func (table *TableInstance) HashRange() bool {
 	return table.Keys[RANGE_KEY_TYPE] != nil
 }
@@ -358,8 +359,11 @@ func (table *TableInstance) DeleteItem(hashKey interface{}, rangeKey interface{}
 
 func (table *TableInstance) Query(hashKey interface{}) *QueryRequest {
 	query := QueryTable(table)
-	hkey := *table.HashKey()
-	query = query.SetCondition(hkey.AttributeName, EQ(EncodeAttributeValue(hkey, hashKey)))
+
+	if hashKey != nil {
+		hkey := *table.HashKey()
+		query = query.SetCondition(hkey.AttributeName, EQ(EncodeAttributeValue(hkey, hashKey)))
+	}
 
 	return query
 }
